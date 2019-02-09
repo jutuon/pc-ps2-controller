@@ -1,0 +1,10 @@
+[package]
+name = "pc-ps2-controller"
+version = "0.1.0"
+authors = ["Juuso Tuononen <jutuon@outlook.com>"]
+edition = "2018"
+publish = false
+
+[dependencies]
+pc-keyboard = "0.3.1"
+bitflags = "1.0"

@@ -87,9 +87,7 @@ pub trait ReadStatus<T: PortIO>: PortIOAvailable<T> {
 
 pub struct InitController<T: PortIO>(T);
 
-impl <T: PortIO> PortIOAvailable<T> for InitController<T> {
-    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
-}
+impl_port_io_available!(<T: PortIO> InitController<T>);
 
 impl <T: PortIO> InitController<T> {
     pub fn start_init(port_io: T) -> InitControllerWaitInterrupt<T> {
@@ -222,9 +220,7 @@ enum EnableDevice {
     KeyboardAndAuxiliaryDevice,
 }
 
-impl <T: PortIO> PortIOAvailable<T> for DevicesDisabled<T> {
-    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
-}
+impl_port_io_available!(<T: PortIO> DevicesDisabled<T>);
 
 impl <T: PortIO> ReadStatus<T> for DevicesDisabled<T> {}
 impl <T: PortIO> DangerousDeviceCommands<T> for DevicesDisabled<T> {}
@@ -252,9 +248,7 @@ impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, Disabled> {
     }
 }
 
-impl <T: PortIO, D1, D2, IRQ> PortIOAvailable<T> for EnabledDevices<T, D1, D2, IRQ> {
-    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
-}
+impl_port_io_available!(<T: PortIO, D1, D2, IRQ> EnabledDevices<T, D1, D2, IRQ>);
 
 impl <T: PortIO, D1, D2, IRQ> ReadStatus<T> for EnabledDevices<T, D1, D2, IRQ> {}
 

@@ -19,3 +19,21 @@ pub trait PortIO {
 pub trait PortIOAvailable<T: PortIO> {
     fn port_io_mut(&mut self) -> &mut T;
 }
+
+
+macro_rules! impl_port_io_available {
+    (<T: PortIO> $type:ty) => {
+        impl <T: PortIO> crate::controller::io::PortIOAvailable<T> for $type {
+            fn port_io_mut(&mut self) -> &mut T {
+                &mut self.0
+            }
+        }
+    };
+    (<T: PortIO, D1, D2, IRQ> $type:ty) => {
+        impl <T: PortIO, D1, D2, IRQ> crate::controller::io::PortIOAvailable<T> for $type {
+            fn port_io_mut(&mut self) -> &mut T {
+                &mut self.0
+            }
+        }
+    };
+}

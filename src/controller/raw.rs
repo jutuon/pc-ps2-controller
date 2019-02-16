@@ -15,39 +15,58 @@ bitflags! {
 }
 
 
-pub const CONTROLLER_RAM_SIZE: usize = (RawCommands::READ_RAM_END - RawCommands::READ_RAM_START + 1) as usize;
+pub const CONTROLLER_RAM_SIZE: usize = (CommandReturnData::READ_RAM_END - CommandReturnData::READ_RAM_START + 1) as usize;
 
-pub struct RawCommands;
+pub struct Command;
 
-impl RawCommands {
+impl Command {
+    pub const ENABLE_PASSWORD: u8 = 0xA6;
+    pub const DISABLE_AUXILIARY_DEVICE_INTERFACE: u8 = 0xA7;
+    pub const ENABLE_AUXILIARY_DEVICE_INTERFACE: u8 = 0xA8;
+
+    pub const DISABLE_KEYBOARD_INTERFACE: u8 = 0xAD;
+    pub const ENABLE_KEYBOARD_INTERFACE: u8 = 0xAE;
+
+    /// Writes to status register.
+    pub const POLL_INPUT_PORT_LOW: u8 = 0xC1;
+}
+
+/// Commands which write data to data register.
+pub struct CommandReturnData;
+
+impl CommandReturnData {
     pub const READ_CONTROLLER_COMMAND_BYTE: u8 = 0x20;
     pub const READ_RAM_START: u8 = 0x21;
     pub const READ_RAM_END: u8 = 0x3F;
 
-    pub const WRITE_CONTROLLER_COMMAND_BYTE: u8 = 0x60;
-    pub const WRITE_RAM_START: u8 = 0x61;
-    //const WRITE_RAM_END: u8 = 0x7F;
-
-    //const TEST_PASSWORD_INSTALLED: u8 = 0xA4;
-    //const LOAD_PASSWORD: u8 = 0xA5;
-    //const ENABLE_PASSWORD: u8 = 0xA6;
-    pub const DISABLE_AUXILIARY_DEVICE_INTERFACE: u8 = 0xA7;
-    pub const ENABLE_AUXILIARY_DEVICE_INTERFACE: u8 = 0xA8;
+    pub const TEST_PASSWORD_INSTALLED: u8 = 0xA4;
     pub const AUXILIARY_DEVICE_INTERFACE_TEST: u8 = 0xA9;
     pub const SELF_TEST: u8 = 0xAA;
     pub const KEYBOARD_INTERFACE_TEST: u8 = 0xAB;
-    pub const DISABLE_KEYBOARD_INTERFACE: u8 = 0xAD;
-    pub const ENABLE_KEYBOARD_INTERFACE: u8 = 0xAE;
 
-    //const READ_INPUT_PORT: u8 = 0xC0;
-    //const POLL_INPUT_PORT_LOW: u8 = 0xC1;
-    //const READ_OUTPUT_PORT: u8 = 0xD0;
-    //const WRITE_OUTPUT_PORT: u8 = 0xD1;
-    //const WRITE_KEYBOARD_OUTPUT_BUFFER: u8 = 0xD2;
-    //const WRITE_AUXILIARY_DEVICE_OUTPUT_BUFFER: u8 = 0xD3;
+    pub const READ_INPUT_PORT: u8 = 0xC0;
+    pub const READ_OUTPUT_PORT: u8 = 0xD0;
+    pub const READ_TEST_INPUTS: u8 = 0xE0;
+
+    pub const PULSE_OUTPUT_PORT_START: u8 = 0xF0;
+    pub const PULSE_OUTPUT_PORT_END: u8 = 0xFF;
+}
+
+/// Commands which require additional data to
+/// be written to the data register.
+pub struct CommandWaitData;
+
+impl CommandWaitData {
+    pub const WRITE_CONTROLLER_COMMAND_BYTE: u8 = 0x60;
+    pub const WRITE_RAM_START: u8 = 0x61;
+    pub const WRITE_RAM_END: u8 = 0x7F;
+
+    /// Password must be null-terminated.
+    pub const LOAD_PASSWORD: u8 = 0xA5;
+    pub const WRITE_OUTPUT_PORT: u8 = 0xD1;
+    pub const WRITE_KEYBOARD_OUTPUT_BUFFER: u8 = 0xD2;
+    pub const WRITE_AUXILIARY_DEVICE_OUTPUT_BUFFER: u8 = 0xD3;
     pub const WRITE_TO_AUXILIARY_DEVICE: u8 = 0xD4;
-    //const READ_TEST_INPUTS: u8 = 0xE0;
-    //const PULSE_OUTPUT_PORT: u8 = 0xF0;
 }
 
 bitflags! {

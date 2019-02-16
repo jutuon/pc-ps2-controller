@@ -98,7 +98,7 @@ impl <T: PortIO> InitController<T> {
 
         let wait_interrupt = WaitInterrupt::send_controller_command(
             controller,
-            RawCommands::READ_CONTROLLER_COMMAND_BYTE,
+            CommandReturnData::READ_CONTROLLER_COMMAND_BYTE,
             Self::convert_function
         );
 
@@ -309,7 +309,7 @@ fn send_controller_command_and_write_data<T: PortIO, U: ReadStatus<T>>(controlle
 }
 
 fn write_controller_command_byte<T: PortIO, U: ReadStatus<T>>(controller: &mut U, data: ControllerCommandByte) {
-    send_controller_command_and_write_data(controller, RawCommands::WRITE_CONTROLLER_COMMAND_BYTE, data.bits())
+    send_controller_command_and_write_data(controller, CommandWaitData::WRITE_CONTROLLER_COMMAND_BYTE, data.bits())
 }
 
 fn send_controller_command_and_wait_response<
@@ -386,13 +386,13 @@ pub trait AuxiliaryDeviceDisabled {}
 
 pub trait ReadRAM<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisabled + AuxiliaryDeviceDisabled + Sized {
     fn controller_command_byte(&mut self) -> ControllerCommandByte {
-        let raw = send_controller_command_and_wait_response(self, RawCommands::READ_CONTROLLER_COMMAND_BYTE);
+        let raw = send_controller_command_and_wait_response(self, CommandReturnData::READ_CONTROLLER_COMMAND_BYTE);
         ControllerCommandByte::from_bits_truncate(raw)
     }
 
     fn ram(&mut self, data: &mut [u8; CONTROLLER_RAM_SIZE]) {
         for (i, byte) in data.iter_mut().enumerate() {
-            let data = send_controller_command_and_wait_response(self, RawCommands::READ_RAM_START + i as u8);
+            let data = send_controller_command_and_wait_response(self, CommandReturnData::READ_RAM_START + i as u8);
             *byte = data;
         }
     }
@@ -401,7 +401,7 @@ pub trait ReadRAM<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisab
 pub trait WriteRAM<T: PortIO>: ReadStatus<T> + Sized {
     fn write_ram(&mut self, data: &mut [u8; CONTROLLER_RAM_SIZE]) {
         for (i, byte) in data.iter().enumerate() {
-            send_controller_command_and_write_data(self, RawCommands::WRITE_RAM_START + i as u8, *byte);
+            send_controller_command_and_write_data(self, CommandWaitData::WRITE_RAM_START + i as u8, *byte);
         }
     }
 }
@@ -410,34 +410,34 @@ pub trait WriteRAM<T: PortIO>: ReadStatus<T> + Sized {
 /// to the types.
 trait DangerousDeviceCommands<T: PortIO>: ReadStatus<T> + Sized {
     fn dangerous_disable_auxiliary_device_interface(&mut self) {
-        send_controller_command(self, RawCommands::DISABLE_AUXILIARY_DEVICE_INTERFACE);
+        send_controller_command(self, Command::DISABLE_AUXILIARY_DEVICE_INTERFACE);
         while self.status().input_buffer_full() {}
     }
 
     fn dangerous_enable_auxiliary_device(&mut self) {
-        send_controller_command(self, RawCommands::ENABLE_AUXILIARY_DEVICE_INTERFACE);
+        send_controller_command(self, Command::ENABLE_AUXILIARY_DEVICE_INTERFACE);
         while self.status().input_buffer_full() {}
     }
 
     fn dangerous_disable_keyboard_interface(&mut self) {
-        send_controller_command(self, RawCommands::DISABLE_KEYBOARD_INTERFACE);
+        send_controller_command(self, Command::DISABLE_KEYBOARD_INTERFACE);
         while self.status().input_buffer_full() {}
     }
 
     fn dangerous_enable_keyboard_interface(&mut self) {
-        send_controller_command(self, RawCommands::ENABLE_KEYBOARD_INTERFACE);
+        send_controller_command(self, Command::ENABLE_KEYBOARD_INTERFACE);
         while self.status().input_buffer_full() {}
     }
 }
 
 pub trait Testing<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisabled + AuxiliaryDeviceDisabled + Sized {
     fn auxiliary_device_interface_test(&mut self) -> Result<(), DeviceInterfaceError> {
-        let test_result = send_controller_command_and_wait_response(self, RawCommands::AUXILIARY_DEVICE_INTERFACE_TEST);
+        let test_result = send_controller_command_and_wait_response(self, CommandReturnData::AUXILIARY_DEVICE_INTERFACE_TEST);
         DeviceInterfaceError::from_test_result(test_result)
     }
 
     fn self_test(&mut self) -> Result<(), u8> {
-        let result = send_controller_command_and_wait_response(self, RawCommands::SELF_TEST);
+        let result = send_controller_command_and_wait_response(self, CommandReturnData::SELF_TEST);
         if result == 0x55 {
             Ok(())
         } else {
@@ -446,14 +446,14 @@ pub trait Testing<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisab
     }
 
     fn keyboard_interface_test(&mut self) -> Result<(), DeviceInterfaceError> {
-        let test_result = send_controller_command_and_wait_response(self, RawCommands::KEYBOARD_INTERFACE_TEST);
+        let test_result = send_controller_command_and_wait_response(self, CommandReturnData::KEYBOARD_INTERFACE_TEST);
         DeviceInterfaceError::from_test_result(test_result)
     }
 }
 
 pub trait AuxiliaryDeviceIO<T: PortIO>: ReadStatus<T> + Sized {
     fn send_to_auxiliary_device(&mut self, data: u8) {
-        send_controller_command_and_write_data(self, RawCommands::WRITE_TO_AUXILIARY_DEVICE, data);
+        send_controller_command_and_write_data(self, CommandWaitData::WRITE_TO_AUXILIARY_DEVICE, data);
     }
 
     fn poll_auxiliary_device_data(&mut self) -> Option<u8> {

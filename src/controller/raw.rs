@@ -29,6 +29,8 @@ impl Command {
 
     /// Writes to status register.
     pub const POLL_INPUT_PORT_LOW: u8 = 0xC1;
+    /// Writes to status register.
+    pub const POLL_INPUT_PORT_HIGH: u8 = 0xC2;
 }
 
 /// Commands which write data to data register.

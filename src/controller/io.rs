@@ -17,26 +17,5 @@ pub trait PortIO {
 }
 
 pub trait PortIOAvailable<T: PortIO> {
-    fn port_io_mut(&mut self) -> &mut PortIOWrapper<T>;
-}
-
-pub struct PortIOWrapper<T: PortIO>(pub(crate) T);
-
-pub(crate) trait PrivatePortIO {
-    type PortID: Copy;
-
-    // Reading is `&mut self`, because it can change controller state.
-    fn read(&mut self, port: Self::PortID) -> u8;
-    fn write(&mut self, port: Self::PortID, data: u8);
-}
-
-impl <T: PortIO> PrivatePortIO for PortIOWrapper<T> {
-    type PortID = T::PortID;
-
-    fn read(&mut self, port: Self::PortID) -> u8 {
-        self.0.read(port)
-    }
-    fn write(&mut self, port: Self::PortID, data: u8) {
-        self.0.write(port, data)
-    }
+    fn port_io_mut(&mut self) -> &mut T;
 }

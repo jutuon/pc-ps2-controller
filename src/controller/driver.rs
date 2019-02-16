@@ -85,15 +85,15 @@ pub trait ReadStatus<T: PortIO>: PortIOAvailable<T> {
     }
 }
 
-pub struct InitController<T: PortIO>(PortIOWrapper<T>);
+pub struct InitController<T: PortIO>(T);
 
 impl <T: PortIO> PortIOAvailable<T> for InitController<T> {
-    fn port_io_mut(&mut self) -> &mut PortIOWrapper<T> { &mut self.0 }
+    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
 }
 
 impl <T: PortIO> InitController<T> {
     pub fn start_init(port_io: T) -> InitControllerWaitInterrupt<T> {
-        let mut controller = InitController(PortIOWrapper(port_io));
+        let mut controller = InitController(port_io);
 
         controller.dangerous_disable_auxiliary_device_interface();
         controller.dangerous_disable_keyboard_interface();
@@ -130,7 +130,7 @@ pub enum InterfaceError {
     AuxiliaryDevice(DeviceInterfaceError),
 }
 
-pub struct DevicesDisabled<T: PortIO>(PortIOWrapper<T>);
+pub struct DevicesDisabled<T: PortIO>(T);
 
 impl <T: PortIO> DevicesDisabled<T> {
     pub fn scancode_translation(&mut self, enabled: bool) {
@@ -223,7 +223,7 @@ enum EnableDevice {
 }
 
 impl <T: PortIO> PortIOAvailable<T> for DevicesDisabled<T> {
-    fn port_io_mut(&mut self) -> &mut PortIOWrapper<T> { &mut self.0 }
+    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
 }
 
 impl <T: PortIO> ReadStatus<T> for DevicesDisabled<T> {}
@@ -235,12 +235,11 @@ impl <T: PortIO> ReadRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> WriteRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> Testing<T> for DevicesDisabled<T> {}
 
-pub struct EnabledDevices<T: PortIO, D1, D2, IRQ>(PortIOWrapper<T>, PhantomData<D1>, PhantomData<D2>, PhantomData<IRQ>);
+pub struct EnabledDevices<T: PortIO, D1, D2, IRQ>(T, PhantomData<D1>, PhantomData<D2>, PhantomData<IRQ>);
 
 impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, InterruptsEnabled> {
     pub fn disable_devices(self) -> InitControllerWaitInterrupt<T> {
-        let port_io_wrapper = self.0;
-        InitController::start_init(port_io_wrapper.0)
+        InitController::start_init(self.0)
     }
 }
 
@@ -254,7 +253,7 @@ impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, Disabled> {
 }
 
 impl <T: PortIO, D1, D2, IRQ> PortIOAvailable<T> for EnabledDevices<T, D1, D2, IRQ> {
-    fn port_io_mut(&mut self) -> &mut PortIOWrapper<T> { &mut self.0 }
+    fn port_io_mut(&mut self) -> &mut T { &mut self.0 }
 }
 
 impl <T: PortIO, D1, D2, IRQ> ReadStatus<T> for EnabledDevices<T, D1, D2, IRQ> {}

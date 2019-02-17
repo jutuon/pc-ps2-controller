@@ -136,6 +136,7 @@ impl <T: PortIO> AuxiliaryDeviceDisabled for DevicesDisabled<T> {}
 impl <T: PortIO> ReadRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> WriteRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> Testing<T> for DevicesDisabled<T> {}
+impl <T: PortIO> ResetCPU<T> for DevicesDisabled<T> {}
 
 pub struct EnabledDevices<T: PortIO, IRQ> {
     port_io: T,
@@ -186,6 +187,7 @@ impl_port_io_available!(<T: PortIO, IRQ> EnabledDevices<T, IRQ>);
 
 impl <T: PortIO, IRQ> ReadStatus<T> for EnabledDevices<T, IRQ> {}
 impl <T: PortIO, IRQ> ReadData<T> for EnabledDevices<T, IRQ> {}
+impl <T: PortIO, IRQ> ResetCPU<T> for EnabledDevices<T, IRQ> {}
 
 impl <T: PortIO> DangerousDeviceCommands<T> for EnabledDevices<T, Disabled> {}
 
@@ -341,5 +343,11 @@ pub trait ReadData<T: PortIO>: ReadStatus<T> + Sized {
                 DataOwner::AuxiliaryDevice => DeviceData::AuxiliaryDevice(data),
             }
         })
+    }
+}
+
+pub trait ResetCPU<T: PortIO>: ReadStatus<T> + Sized {
+    fn reset_cpu(&mut self) {
+        send_controller_command_and_wait_processing(self, Command::PULSE_OUTPUT_PORT_START | 0b0000_1110);
     }
 }

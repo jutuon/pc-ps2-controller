@@ -44,3 +44,5 @@ impl <T: PortIO, U: PortIOAvailable<T>> AuxiliaryDeviceDisabled for DebugMode<'_
 impl <T: PortIO, U: PortIOAvailable<T>> ReadRAM<T> for DebugMode<'_, T, U> {}
 impl <T: PortIO, U: PortIOAvailable<T>> WriteRAM<T> for DebugMode<'_, T, U> {}
 impl <T: PortIO, U: PortIOAvailable<T>> Testing<T> for DebugMode<'_, T, U> {}
+impl <T: PortIO, U: PortIOAvailable<T>> ResetCPU<T> for DebugMode<'_, T, U> {}
+

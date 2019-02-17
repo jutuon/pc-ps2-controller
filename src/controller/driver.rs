@@ -132,55 +132,41 @@ impl <T: PortIO> DevicesDisabled<T> {
         write_controller_command_byte(self, command_byte);
     }
 
-    pub fn enable_keyboard(mut self) -> Result<EnabledDevices<T, KeyboardEnabled, Disabled, Disabled>, (Self, DeviceInterfaceError)> {
-        match self.keyboard_interface_test() {
-            Ok(()) => Ok(self.configure(EnableDevice::Keyboard, false)),
+    pub fn enable_devices(mut self, devices: EnableDevice) -> Result<EnabledDevices<T, Disabled>, (Self, InterfaceError)> {
+        match self.test_devices(devices) {
+            Ok(()) => Ok(self.configure(devices, false)),
             Err(e) => Err((self, e)),
         }
     }
 
-    pub fn enable_auxiliary_device(mut self) -> Result<EnabledDevices<T, Disabled, AuxiliaryDeviceEnabled, Disabled>, (Self, DeviceInterfaceError)> {
-        match self.auxiliary_device_interface_test() {
-            Ok(()) => Ok(self.configure(EnableDevice::AuxiliaryDevice, false)),
+    pub fn enable_devices_and_interrupts(mut self, devices: EnableDevice) -> Result<EnabledDevices<T, InterruptsEnabled>, (Self, InterfaceError)> {
+        match self.test_devices(devices) {
+            Ok(()) => Ok(self.configure(devices, true)),
             Err(e) => Err((self, e)),
         }
     }
 
-    pub fn enable_keyboard_and_auxiliary_device(mut self) -> Result<EnabledDevices<T, KeyboardEnabled, AuxiliaryDeviceEnabled, Disabled>, (Self, InterfaceError)> {
-        match self.test_keyboard_and_auxiliary_device() {
-            Ok(()) => Ok(self.configure(EnableDevice::KeyboardAndAuxiliaryDevice, false)),
-            Err(e) => Err((self, e)),
+    fn test_devices(&mut self, devices: EnableDevice) -> Result<(), InterfaceError> {
+        match &devices {
+            EnableDevice::Keyboard => self.test_keyboard(),
+            EnableDevice::AuxiliaryDevice => self.test_auxiliary_device(),
+            EnableDevice::KeyboardAndAuxiliaryDevice => self.test_keyboard_and_auxiliary_device(),
         }
     }
 
-    pub fn enable_keyboard_and_interrupts(mut self) -> Result<EnabledDevices<T, KeyboardEnabled, Disabled, InterruptsEnabled>, (Self, DeviceInterfaceError)> {
-        match self.keyboard_interface_test() {
-            Ok(()) => Ok(self.configure(EnableDevice::Keyboard, true)),
-            Err(e) => Err((self, e)),
-        }
+    fn test_auxiliary_device(&mut self) -> Result<(), InterfaceError> {
+        self.auxiliary_device_interface_test().map_err(|e| InterfaceError::AuxiliaryDevice(e))
     }
 
-    pub fn enable_auxiliary_device_and_interrupts(mut self) -> Result<EnabledDevices<T, Disabled, AuxiliaryDeviceEnabled, InterruptsEnabled>, (Self, DeviceInterfaceError)> {
-        match self.auxiliary_device_interface_test() {
-            Ok(()) => Ok(self.configure(EnableDevice::AuxiliaryDevice, true)),
-            Err(e) => Err((self, e)),
-        }
-    }
-
-    pub fn enable_keyboard_and_auxiliary_device_and_interrupts(mut self) -> Result<EnabledDevices<T, KeyboardEnabled, AuxiliaryDeviceEnabled, InterruptsEnabled>, (Self, InterfaceError)> {
-        match self.test_keyboard_and_auxiliary_device() {
-            Ok(()) => Ok(self.configure(EnableDevice::KeyboardAndAuxiliaryDevice, true)),
-            Err(e) => Err((self, e)),
-        }
+    fn test_keyboard(&mut self) -> Result<(), InterfaceError> {
+        self.keyboard_interface_test().map_err(|e| InterfaceError::Keyboard(e))
     }
 
     fn test_keyboard_and_auxiliary_device(&mut self) -> Result<(), InterfaceError> {
-        self.keyboard_interface_test()
-            .map_err(|e| InterfaceError::Keyboard(e))
-            .and(self.auxiliary_device_interface_test().map_err(|e| InterfaceError::AuxiliaryDevice(e)))
+        self.test_keyboard().and(self.test_auxiliary_device())
     }
 
-    fn configure<D1, D2, IRQ>(mut self, devices: EnableDevice, interrupts: bool) -> EnabledDevices<T, D1, D2, IRQ> {
+    fn configure<IRQ>(mut self, devices: EnableDevice, interrupts: bool) -> EnabledDevices<T, IRQ> {
         match &devices {
             EnableDevice::Keyboard => self.dangerous_enable_keyboard_interface(),
             EnableDevice::AuxiliaryDevice => self.dangerous_enable_auxiliary_device(),
@@ -205,11 +191,16 @@ impl <T: PortIO> DevicesDisabled<T> {
             write_controller_command_byte(&mut self, command_byte);
         }
 
-        EnabledDevices(self.0, PhantomData, PhantomData, PhantomData)
+        EnabledDevices {
+            port_io: self.0,
+            _marker: PhantomData,
+            devices
+        }
     }
 }
 
-enum EnableDevice {
+#[derive(Debug, Copy, Clone)]
+pub enum EnableDevice {
     Keyboard,
     AuxiliaryDevice,
     KeyboardAndAuxiliaryDevice,
@@ -226,33 +217,57 @@ impl <T: PortIO> ReadRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> WriteRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> Testing<T> for DevicesDisabled<T> {}
 
-pub struct EnabledDevices<T: PortIO, D1, D2, IRQ>(T, PhantomData<D1>, PhantomData<D2>, PhantomData<IRQ>);
+pub struct EnabledDevices<T: PortIO, IRQ> {
+    port_io: T,
+    _marker: PhantomData<IRQ>,
+    devices: EnableDevice,
+}
 
-impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, InterruptsEnabled> {
-    /// You should disable the interrupts before disabling
-    /// the devices.
-    pub fn disable_devices(self) -> DevicesDisabled<T> {
-        InitController::start_init(self.0)
+impl <T: PortIO, IRQ> EnabledDevices<T, IRQ> {
+    pub fn send_to_auxiliary_device(&mut self, data: u8) -> Result<(),()> {
+        match &self.devices {
+            EnableDevice::AuxiliaryDevice | EnableDevice::KeyboardAndAuxiliaryDevice => {
+                send_controller_command_and_write_data(self, CommandWaitData::WRITE_TO_AUXILIARY_DEVICE, data);
+                Ok(())
+            },
+            EnableDevice::Keyboard => Err(())
+        }
+    }
+
+    pub fn send_to_keyboard(&mut self, data: u8) -> Result<(), ()> {
+        match &self.devices {
+            EnableDevice::Keyboard | EnableDevice::KeyboardAndAuxiliaryDevice => {
+                self.port_io_mut().write(T::DATA_PORT, data);
+                Ok(())
+            },
+            EnableDevice::AuxiliaryDevice => Err(())
+        }
     }
 }
 
-impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, Disabled> {
+impl <T: PortIO> EnabledDevices<T, InterruptsEnabled> {
+    /// You should disable the interrupts before disabling
+    /// the devices.
+    pub fn disable_devices(self) -> DevicesDisabled<T> {
+        InitController::start_init(self.port_io)
+    }
+}
+
+impl <T: PortIO> EnabledDevices<T, Disabled> {
     pub fn disable_devices(mut self) -> DevicesDisabled<T> {
         self.dangerous_disable_auxiliary_device_interface();
         self.dangerous_disable_keyboard_interface();
 
-        DevicesDisabled(self.0)
+        DevicesDisabled(self.port_io)
     }
 }
 
-impl_port_io_available!(<T: PortIO, D1, D2, IRQ> EnabledDevices<T, D1, D2, IRQ>);
+impl_port_io_available!(<T: PortIO, IRQ> EnabledDevices<T, IRQ>);
 
-impl <T: PortIO, D1, D2, IRQ> ReadStatus<T> for EnabledDevices<T, D1, D2, IRQ> {}
-impl <T: PortIO, D1, D2, IRQ> ReadData<T> for EnabledDevices<T, D1, D2, IRQ> {}
-impl <T: PortIO, D2, IRQ> KeyboardIO<T> for EnabledDevices<T, KeyboardEnabled, D2, IRQ> {}
-impl <T: PortIO, D1, IRQ> AuxiliaryDeviceIO<T> for EnabledDevices<T, D1, AuxiliaryDeviceEnabled, IRQ> {}
+impl <T: PortIO, IRQ> ReadStatus<T> for EnabledDevices<T, IRQ> {}
+impl <T: PortIO, IRQ> ReadData<T> for EnabledDevices<T, IRQ> {}
 
-impl <T: PortIO, D1, D2> DangerousDeviceCommands<T> for EnabledDevices<T, D1, D2, Disabled> {}
+impl <T: PortIO> DangerousDeviceCommands<T> for EnabledDevices<T, Disabled> {}
 
 pub struct InterruptsEnabled;
 pub struct KeyboardEnabled;
@@ -395,18 +410,6 @@ pub trait Testing<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisab
     fn keyboard_interface_test(&mut self) -> Result<(), DeviceInterfaceError> {
         let test_result = send_controller_command_and_wait_response(self, CommandReturnData::KEYBOARD_INTERFACE_TEST);
         DeviceInterfaceError::from_test_result(test_result)
-    }
-}
-
-pub trait AuxiliaryDeviceIO<T: PortIO>: ReadStatus<T> + Sized {
-    fn send_to_auxiliary_device(&mut self, data: u8) {
-        send_controller_command_and_write_data(self, CommandWaitData::WRITE_TO_AUXILIARY_DEVICE, data);
-    }
-}
-
-pub trait KeyboardIO<T: PortIO>: ReadStatus<T> + Sized {
-    fn send_to_keyboard(&mut self, data: u8) {
-        self.port_io_mut().write(T::DATA_PORT, data);
     }
 }
 

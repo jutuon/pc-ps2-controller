@@ -5,7 +5,6 @@ use pc_keyboard::{Keyboard, DecodedKey, KeyboardLayout, ScancodeSet};
 use crate::controller::{
     io::PortIO,
     driver::{
-        KeyboardIO,
         ReadData,
         DeviceData,
     },
@@ -13,9 +12,9 @@ use crate::controller::{
 
 use core::marker::PhantomData;
 
-pub struct KeyboardDriver<T: PortIO, U: KeyboardIO<T>, K: KeyboardLayout, S: ScancodeSet>(U, Keyboard<K, S>, PhantomData<T>);
+pub struct KeyboardDriver<T: PortIO, U: ReadData<T>, K: KeyboardLayout, S: ScancodeSet>(U, Keyboard<K, S>, PhantomData<T>);
 
-impl <T: PortIO, U: KeyboardIO<T> + ReadData<T>, K: KeyboardLayout, S: ScancodeSet> KeyboardDriver<T, U, K, S> {
+impl <T: PortIO, U: ReadData<T>, K: KeyboardLayout, S: ScancodeSet> KeyboardDriver<T, U, K, S> {
     pub fn new(controller: U, keyboard: Keyboard<K, S>) -> Self {
         KeyboardDriver(controller, keyboard, PhantomData)
     }
@@ -41,7 +40,7 @@ impl <T: PortIO, U: KeyboardIO<T> + ReadData<T>, K: KeyboardLayout, S: ScancodeS
     }
 }
 
-impl <T: PortIO, U: KeyboardIO<T> + ReadData<T>, K: KeyboardLayout, S: ScancodeSet> KeyboardDriver<T, U, K, S> {
+impl <T: PortIO, U: ReadData<T>, K: KeyboardLayout, S: ScancodeSet> KeyboardDriver<T, U, K, S> {
     pub fn handle_keyboard_interrupt(&mut self) -> Option<DecodedKey> {
         if let DeviceData::Keyboard(data) = self.0.read_data()? {
             self.handle_keyboard_data(data)

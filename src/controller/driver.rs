@@ -230,14 +230,14 @@ impl DeviceInterfaceError {
 //       The current code checks that the buffer is empty only when using
 //       commands that return a value.
 
-fn send_controller_command<T: PortIO, U: ReadStatus<T>>(controller: &mut U, command: u8) {
+fn send_controller_command_and_wait_processing<T: PortIO, U: ReadStatus<T>>(controller: &mut U, command: u8) {
     while controller.status().input_buffer_full() {}
     controller.port_io_mut().write(T::COMMAND_REGISTER, command);
+    while controller.status().input_buffer_full() {}
 }
 
 fn send_controller_command_and_write_data<T: PortIO, U: ReadStatus<T>>(controller: &mut U, command: u8, data: u8) {
-    send_controller_command(controller, command);
-    while controller.status().input_buffer_full() {}
+    send_controller_command_and_wait_processing(controller, command);
     controller.port_io_mut().write(T::DATA_PORT, data);
 }
 
@@ -254,7 +254,7 @@ fn send_controller_command_and_wait_response<
         controller.port_io_mut().read(T::DATA_PORT);
     }
 
-    send_controller_command(controller, command);
+    send_controller_command_and_wait_processing(controller, command);
 
     loop {
         if let Some(DataOwner::KeyboardOrCommandController) = controller.status().data_availability() {
@@ -289,23 +289,19 @@ pub trait WriteRAM<T: PortIO>: ReadStatus<T> + Sized {
 /// to the types.
 trait DangerousDeviceCommands<T: PortIO>: ReadStatus<T> + Sized {
     fn dangerous_disable_auxiliary_device_interface(&mut self) {
-        send_controller_command(self, Command::DISABLE_AUXILIARY_DEVICE_INTERFACE);
-        while self.status().input_buffer_full() {}
+        send_controller_command_and_wait_processing(self, Command::DISABLE_AUXILIARY_DEVICE_INTERFACE);
     }
 
     fn dangerous_enable_auxiliary_device(&mut self) {
-        send_controller_command(self, Command::ENABLE_AUXILIARY_DEVICE_INTERFACE);
-        while self.status().input_buffer_full() {}
+        send_controller_command_and_wait_processing(self, Command::ENABLE_AUXILIARY_DEVICE_INTERFACE);
     }
 
     fn dangerous_disable_keyboard_interface(&mut self) {
-        send_controller_command(self, Command::DISABLE_KEYBOARD_INTERFACE);
-        while self.status().input_buffer_full() {}
+        send_controller_command_and_wait_processing(self, Command::DISABLE_KEYBOARD_INTERFACE);
     }
 
     fn dangerous_enable_keyboard_interface(&mut self) {
-        send_controller_command(self, Command::ENABLE_KEYBOARD_INTERFACE);
-        while self.status().input_buffer_full() {}
+        send_controller_command_and_wait_processing(self, Command::ENABLE_KEYBOARD_INTERFACE);
     }
 }
 

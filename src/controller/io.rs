@@ -36,4 +36,11 @@ macro_rules! impl_port_io_available {
             }
         }
     };
+    (<T: PortIO, U: PortIOAvailable<T>> $type:ty) => {
+        impl <T: PortIO, U: PortIOAvailable<T>> crate::controller::io::PortIOAvailable<T> for $type {
+            fn port_io_mut(&mut self) -> &mut T {
+                self.1.port_io_mut()
+            }
+        }
+    }
 }

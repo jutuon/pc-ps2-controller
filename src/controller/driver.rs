@@ -248,9 +248,7 @@ impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, Disabled> {
 impl_port_io_available!(<T: PortIO, D1, D2, IRQ> EnabledDevices<T, D1, D2, IRQ>);
 
 impl <T: PortIO, D1, D2, IRQ> ReadStatus<T> for EnabledDevices<T, D1, D2, IRQ> {}
-
-impl <T: PortIO, D2> KeyboardInterruptIO<T> for EnabledDevices<T, KeyboardEnabled, D2, InterruptsEnabled> {}
-impl <T: PortIO, D1> AuxiliaryDeviceInterruptIO<T> for EnabledDevices<T, D1, AuxiliaryDeviceEnabled, InterruptsEnabled> {}
+impl <T: PortIO, D1, D2, IRQ> ReadData<T> for EnabledDevices<T, D1, D2, IRQ> {}
 impl <T: PortIO, D2, IRQ> KeyboardIO<T> for EnabledDevices<T, KeyboardEnabled, D2, IRQ> {}
 impl <T: PortIO, D1, IRQ> AuxiliaryDeviceIO<T> for EnabledDevices<T, D1, AuxiliaryDeviceEnabled, IRQ> {}
 
@@ -404,38 +402,28 @@ pub trait AuxiliaryDeviceIO<T: PortIO>: ReadStatus<T> + Sized {
     fn send_to_auxiliary_device(&mut self, data: u8) {
         send_controller_command_and_write_data(self, CommandWaitData::WRITE_TO_AUXILIARY_DEVICE, data);
     }
-
-    fn poll_auxiliary_device_data(&mut self) -> Option<u8> {
-        if let Some(DataOwner::AuxiliaryDevice) = self.status().data_availability() {
-            Some(self.port_io_mut().read(T::DATA_PORT))
-        } else {
-            None
-        }
-    }
 }
 
 pub trait KeyboardIO<T: PortIO>: ReadStatus<T> + Sized {
     fn send_to_keyboard(&mut self, data: u8) {
         self.port_io_mut().write(T::DATA_PORT, data);
     }
-
-    fn poll_keyboard_data(&mut self) -> Option<u8> {
-        if let Some(DataOwner::KeyboardOrCommandController) = self.status().data_availability() {
-            Some(self.port_io_mut().read(T::DATA_PORT))
-        } else {
-            None
-        }
-    }
 }
 
-pub trait KeyboardInterruptIO<T: PortIO>: ReadStatus<T> + Sized {
-    fn keyboard_interrupt_read_data_port(&mut self) -> u8 {
-        self.port_io_mut().read(T::DATA_PORT)
-    }
+
+pub enum DeviceData {
+    Keyboard(u8),
+    AuxiliaryDevice(u8),
 }
 
-pub trait AuxiliaryDeviceInterruptIO<T: PortIO>: ReadStatus<T> + Sized {
-    fn auxiliary_device_interrupt_read_data_port(&mut self) -> u8 {
-        self.port_io_mut().read(T::DATA_PORT)
+pub trait ReadData<T: PortIO>: ReadStatus<T> + Sized {
+    fn read_data(&mut self) -> Option<DeviceData> {
+        self.status().data_availability().map(|data_owner| {
+            let data = self.port_io_mut().read(T::DATA_PORT);
+            match data_owner {
+                DataOwner::KeyboardOrCommandController => DeviceData::Keyboard(data),
+                DataOwner::AuxiliaryDevice => DeviceData::AuxiliaryDevice(data),
+            }
+        })
     }
 }

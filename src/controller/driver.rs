@@ -16,13 +16,11 @@ use core::marker::PhantomData;
 
 pub struct InitController<T: PortIO>(T);
 
-impl_port_io_available!(<T: PortIO> InitController<T>);
-
 impl <T: PortIO> InitController<T> {
     /// You should disable interrupts before starting the initialization
     /// process.
     pub fn start_init(port_io: T) -> DevicesDisabled<T> {
-        let mut controller = InitController(port_io);
+        let mut controller = DevicesDisabled(port_io);
 
         controller.dangerous_disable_auxiliary_device_interface();
         controller.dangerous_disable_keyboard_interface();
@@ -35,16 +33,9 @@ impl <T: PortIO> InitController<T> {
 
         write_controller_command_byte(&mut controller, command_byte);
 
-        DevicesDisabled(controller.0)
+        controller
     }
 }
-
-impl <T: PortIO> ReadStatus<T> for InitController<T> {}
-impl <T: PortIO> DangerousDeviceCommands<T> for InitController<T> {}
-impl <T: PortIO> KeyboardDisabled for InitController<T> {}
-impl <T: PortIO> AuxiliaryDeviceDisabled for InitController<T> {}
-impl <T: PortIO> InterruptsDisabled for InitController<T> {}
-
 
 #[derive(Debug)]
 pub enum InterfaceError {

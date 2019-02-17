@@ -90,22 +90,16 @@ pub struct InitController<T: PortIO>(T);
 impl_port_io_available!(<T: PortIO> InitController<T>);
 
 impl <T: PortIO> InitController<T> {
-    pub fn start_init(port_io: T) -> InitControllerWaitInterrupt<T> {
+    /// You should disable interrupts before starting the initialization
+    /// process.
+    pub fn start_init(port_io: T) -> DevicesDisabled<T> {
         let mut controller = InitController(port_io);
 
         controller.dangerous_disable_auxiliary_device_interface();
         controller.dangerous_disable_keyboard_interface();
 
-        let wait_interrupt = WaitInterrupt::send_controller_command(
-            controller,
-            CommandReturnData::READ_CONTROLLER_COMMAND_BYTE,
-            Self::convert_function
-        );
+        let raw_command_byte = send_controller_command_and_wait_response(&mut controller, CommandReturnData::READ_CONTROLLER_COMMAND_BYTE);
 
-        InitControllerWaitInterrupt(wait_interrupt)
-    }
-
-    fn convert_function(mut controller: InitController<T>, raw_command_byte: u8) -> DevicesDisabled<T> {
         let mut command_byte = ControllerCommandByte::from_bits_truncate(raw_command_byte);
         command_byte.set(ControllerCommandByte::ENABLE_AUXILIARY_INTERRUPT, false);
         command_byte.set(ControllerCommandByte::ENABLE_KEYBOARD_INTERRUPT, false);
@@ -120,6 +114,7 @@ impl <T: PortIO> ReadStatus<T> for InitController<T> {}
 impl <T: PortIO> DangerousDeviceCommands<T> for InitController<T> {}
 impl <T: PortIO> KeyboardDisabled for InitController<T> {}
 impl <T: PortIO> AuxiliaryDeviceDisabled for InitController<T> {}
+impl <T: PortIO> InterruptsDisabled for InitController<T> {}
 
 
 #[derive(Debug)]
@@ -234,7 +229,9 @@ impl <T: PortIO> Testing<T> for DevicesDisabled<T> {}
 pub struct EnabledDevices<T: PortIO, D1, D2, IRQ>(T, PhantomData<D1>, PhantomData<D2>, PhantomData<IRQ>);
 
 impl <T: PortIO, D1, D2> EnabledDevices<T, D1, D2, InterruptsEnabled> {
-    pub fn disable_devices(self) -> InitControllerWaitInterrupt<T> {
+    /// You should disable the interrupts before disabling
+    /// the devices.
+    pub fn disable_devices(self) -> DevicesDisabled<T> {
         InitController::start_init(self.0)
     }
 }
@@ -330,56 +327,8 @@ fn send_controller_command_and_wait_response<
     }
 }
 
-
-pub struct InitControllerWaitInterrupt<T: PortIO>(WaitInterrupt<T, InitController<T>, DevicesDisabled<T>>);
-
-impl <T: PortIO> InitControllerWaitInterrupt<T> {
-    pub fn interrupt_received(self) -> DevicesDisabled<T> {
-        self.0.interrupt_received()
-    }
-
-    pub fn poll_data(self) -> DevicesDisabled<T> {
-        self.0.poll_keyboard_or_controller_command_data()
-    }
-}
-
-struct WaitInterrupt<
-    T: PortIO,
-    U: ReadStatus<T> + KeyboardDisabled + AuxiliaryDeviceDisabled,
-    V: ReadStatus<T> + KeyboardDisabled + AuxiliaryDeviceDisabled,
->(U, fn(U, u8) -> V, PhantomData<T>);
-
-impl <
-    T: PortIO,
-    U: ReadStatus<T> + KeyboardDisabled + AuxiliaryDeviceDisabled,
-    V: ReadStatus<T> + KeyboardDisabled + AuxiliaryDeviceDisabled
-> WaitInterrupt<T, U, V> {
-    fn send_controller_command(mut controller: U, command: u8, converter: fn(U, u8) -> V) -> Self {
-        if let Some(_) = controller.status().data_availability() {
-            controller.port_io_mut().read(T::DATA_PORT);
-        }
-
-        send_controller_command(&mut controller, command);
-
-        WaitInterrupt(controller, converter, PhantomData)
-    }
-
-    fn interrupt_received(mut self) -> V {
-        let data = self.0.port_io_mut().read(T::DATA_PORT);
-        (self.1)(self.0, data)
-    }
-
-    fn poll_keyboard_or_controller_command_data(mut self) -> V {
-        let data = loop {
-            if let Some(DataOwner::KeyboardOrCommandController) = self.0.status().data_availability() {
-                break self.0.port_io_mut().read(T::DATA_PORT);
-            }
-        };
-        (self.1)(self.0, data)
-    }
-}
-
-
+/// Marker trait to notify user about when interrupts
+/// should be disabled or not handled.
 pub trait InterruptsDisabled {}
 pub trait KeyboardDisabled {}
 pub trait AuxiliaryDeviceDisabled {}

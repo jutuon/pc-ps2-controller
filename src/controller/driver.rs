@@ -305,14 +305,22 @@ trait DangerousDeviceCommands<T: PortIO>: ReadStatus<T> + Sized {
     }
 }
 
-pub trait Testing<T: PortIO>: ReadStatus<T> + InterruptsDisabled + KeyboardDisabled + AuxiliaryDeviceDisabled + Sized {
+pub trait Testing<T: PortIO>: ReadStatus<T> + ReadRAM<T> + InterruptsDisabled + KeyboardDisabled + AuxiliaryDeviceDisabled + Sized {
     fn auxiliary_device_interface_test(&mut self) -> Result<(), DeviceInterfaceError> {
         let test_result = send_controller_command_and_wait_response(self, CommandReturnData::AUXILIARY_DEVICE_INTERFACE_TEST);
         DeviceInterfaceError::from_test_result(test_result)
     }
 
     fn self_test(&mut self) -> Result<(), u8> {
+        // According to the OSDev Wiki the controller self test
+        // may reset the controller, so lets save
+        // the controller command byte and restore it
+        // after the self test.
+
+        let command_byte = self.controller_command_byte();
         let result = send_controller_command_and_wait_response(self, CommandReturnData::SELF_TEST);
+        write_controller_command_byte(self, command_byte);
+
         if result == 0x55 {
             Ok(())
         } else {

@@ -31,6 +31,9 @@ impl Command {
     pub const POLL_INPUT_PORT_LOW: u8 = 0xC1;
     /// Writes to status register.
     pub const POLL_INPUT_PORT_HIGH: u8 = 0xC2;
+
+    pub const PULSE_OUTPUT_PORT_START: u8 = 0xF0;
+    pub const PULSE_OUTPUT_PORT_END: u8 = 0xFF;
 }
 
 /// Commands which write data to data register.
@@ -49,9 +52,6 @@ impl CommandReturnData {
     pub const READ_INPUT_PORT: u8 = 0xC0;
     pub const READ_OUTPUT_PORT: u8 = 0xD0;
     pub const READ_TEST_INPUTS: u8 = 0xE0;
-
-    pub const PULSE_OUTPUT_PORT_START: u8 = 0xF0;
-    pub const PULSE_OUTPUT_PORT_END: u8 = 0xFF;
 }
 
 /// Commands which require additional data to

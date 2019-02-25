@@ -5,18 +5,24 @@ use crate::controller::{
     io::{ PortIO, PortIOAvailable },
 };
 
+#[derive(Debug)]
 pub struct StatusInfo {
     register: StatusRegister,
 }
 
+#[derive(Debug)]
 pub struct OddParity;
+
+#[derive(Debug)]
 pub struct EvenParity;
 
+#[derive(Debug)]
 pub enum DataOwner {
     KeyboardOrCommandController,
     AuxiliaryDevice,
 }
 
+#[derive(Debug)]
 pub enum PasswordState {
     Active,
     Inactive,

@@ -4,6 +4,7 @@
 use crate::device::command_queue::{CommandQueue, Command, Status};
 use crate::device::io::SendToDevice;
 
+use core::fmt;
 
 use super::raw::FromKeyboard;
 
@@ -19,6 +20,12 @@ pub struct Keyboard<T: Array<Item=Command>> {
     commands: CommandQueue<T>,
     state: State,
     scancode_reader: pc_keyboard::Keyboard<layouts::Us104Key, ScancodeSet2>,
+}
+
+impl <T: Array<Item=Command>> fmt::Debug for Keyboard<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Keyboard")
+    }
 }
 
 
@@ -82,19 +89,23 @@ impl <T: Array<Item=Command>> Keyboard<T> {
     }
 }
 
+#[derive(Debug)]
 pub enum KeyboardError {
     KeyDetectionError,
     BATCompletionFailure,
     ScancodeParsingError(Error),
 }
 
+#[derive(Debug)]
 pub enum KeyboardEvent {
     Key(KeyEvent),
     BATCompleted,
 }
 
+#[derive(Debug)]
 pub struct NotEnoughSpaceInTheCommandQueue;
 
+#[derive(Debug)]
 enum State {
     ScancodesDisabled,
     ScancodesEnabled,

@@ -17,6 +17,7 @@ bitflags! {
 
 pub const CONTROLLER_RAM_SIZE: usize = (CommandReturnData::READ_RAM_END - CommandReturnData::READ_RAM_START + 1) as usize;
 
+#[derive(Debug)]
 pub struct Command;
 
 impl Command {
@@ -36,6 +37,7 @@ impl Command {
     pub const PULSE_OUTPUT_PORT_END: u8 = 0xFF;
 }
 
+#[derive(Debug)]
 /// Commands which write data to data register.
 pub struct CommandReturnData;
 
@@ -54,6 +56,7 @@ impl CommandReturnData {
     pub const READ_TEST_INPUTS: u8 = 0xE0;
 }
 
+#[derive(Debug)]
 /// Commands which require additional data to
 /// be written to the data register.
 pub struct CommandWaitData;

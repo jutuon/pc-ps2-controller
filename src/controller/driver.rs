@@ -14,6 +14,7 @@ use super::{
 
 use core::marker::PhantomData;
 
+#[derive(Debug)]
 pub struct InitController<T: PortIO>(T);
 
 impl <T: PortIO> InitController<T> {
@@ -43,6 +44,7 @@ pub enum InterfaceError {
     AuxiliaryDevice(DeviceInterfaceError),
 }
 
+#[derive(Debug)]
 pub struct DevicesDisabled<T: PortIO>(T);
 
 impl <T: PortIO> DevicesDisabled<T> {
@@ -138,6 +140,7 @@ impl <T: PortIO> WriteRAM<T> for DevicesDisabled<T> {}
 impl <T: PortIO> Testing<T> for DevicesDisabled<T> {}
 impl <T: PortIO> ResetCPU<T> for DevicesDisabled<T> {}
 
+#[derive(Debug)]
 pub struct EnabledDevices<T: PortIO, IRQ> {
     port_io: T,
     _marker: PhantomData<IRQ>,
@@ -329,7 +332,7 @@ pub trait Testing<T: PortIO>: ReadStatus<T> + ReadRAM<T> + InterruptsDisabled + 
     }
 }
 
-
+#[derive(Debug)]
 pub enum DeviceData {
     Keyboard(u8),
     AuxiliaryDevice(u8),

@@ -1,6 +1,9 @@
 //! Marker types.
 
+#[derive(Debug)]
 pub struct InterruptsEnabled;
+
+#[derive(Debug)]
 pub struct Disabled;
 
 /// Marker trait to notify user about when interrupts

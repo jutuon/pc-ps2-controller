@@ -7,7 +7,7 @@ use crate::controller::{
     driver::*,
     driver::status::ReadStatus,
 };
-
+#[derive(Debug)]
 /// Bypass state machine encoded to the types. This should be used
 /// only for debugging purposes.
 pub struct DebugMode<'a, T: PortIO, U: PortIOAvailable<T>>(PhantomData<T>, &'a mut U);

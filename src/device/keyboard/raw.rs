@@ -2,6 +2,7 @@
 
 use bitflags::bitflags;
 
+#[derive(Debug)]
 pub struct CommandReturnData;
 
 impl CommandReturnData {
@@ -18,6 +19,7 @@ impl CommandReturnData {
     pub const SET_TYPEMATIC_RATE: u8 = 0xF3;
 }
 
+#[derive(Debug)]
 pub struct CommandSetAllKeys;
 
 impl CommandSetAllKeys {
@@ -27,6 +29,7 @@ impl CommandSetAllKeys {
     pub const TYPEMATIC_SLASH_MAKE_SLASH_BREAK: u8 = 0xFA;
 }
 
+#[derive(Debug)]
 pub struct CommandSetKeyType;
 
 impl CommandSetKeyType {
@@ -43,6 +46,7 @@ bitflags! {
     }
 }
 
+#[derive(Debug)]
 pub struct FromKeyboard;
 
 impl FromKeyboard {

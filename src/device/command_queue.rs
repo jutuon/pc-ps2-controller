@@ -4,6 +4,7 @@ use super::keyboard::raw::{ FromKeyboard, CommandReturnData };
 
 use arraydeque::{Array, Saturating, ArrayDeque, CapacityError};
 
+#[derive(Debug)]
 pub struct CommandQueue<T: Array<Item=Command>> {
     commands: ArrayDeque<T, Saturating>,
     command_checker: CommandChecker,
@@ -51,7 +52,7 @@ impl <T: Array<Item=Command>> CommandQueue<T> {
     }
 }
 
-
+#[derive(Debug)]
 pub struct CommandChecker {
     current_command: Option<Command>,
 }
@@ -129,7 +130,7 @@ impl CommandChecker {
     }
 }
 
-
+#[derive(Debug)]
 pub enum Command {
     AckResponse {
         command: u8,
@@ -155,18 +156,21 @@ impl Command {
     }
 }
 
+#[derive(Debug)]
 pub enum Status {
     UnexpectedData(u8),
     CommandInProggress,
     CommandFinished(Command),
 }
 
+#[derive(Debug)]
 pub enum AckResponseWithReturnTwoBytesState {
     WaitAck,
     WaitFirstByte,
     WaitSecondByte,
 }
 
+#[derive(Debug)]
 pub enum AckResponseState {
     WaitAck,
 }

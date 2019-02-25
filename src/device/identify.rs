@@ -2,10 +2,19 @@
 use super::io::SendToDevice;
 use super::keyboard::raw::{ CommandReturnData, FromKeyboard};
 
+use core::fmt;
+
 
 pub struct DeviceIdentifier<T: SendToDevice> {
     state: fn(&mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device>,
     byte1: u8,
+}
+
+
+impl <T: SendToDevice> fmt::Debug for DeviceIdentifier<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "DeviceIdentifier")
+    }
 }
 
 impl <T: SendToDevice> DeviceIdentifier<T> {
@@ -72,6 +81,7 @@ impl <T: SendToDevice> DeviceIdentifier<T> {
     }
 }
 
+#[derive(Debug)]
 pub enum Device {
     Keyboard,
     Mouse,

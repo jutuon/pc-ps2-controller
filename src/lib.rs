@@ -12,3 +12,6 @@
 
 pub mod device;
 pub mod controller;
+
+
+pub use pc_keyboard;

@@ -169,8 +169,3 @@ pub enum AckResponseWithReturnTwoBytesState {
     WaitFirstByte,
     WaitSecondByte,
 }
-
-#[derive(Debug)]
-pub enum AckResponseState {
-    WaitAck,
-}

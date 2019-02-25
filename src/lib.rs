@@ -9,7 +9,7 @@
 //! * <https://wiki.osdev.org/%228042%22_PS/2_Controller>
 
 #![no_std]
-#![forbid(missing_debug_implementations)]
+#![forbid(missing_debug_implementations, unsafe_code)]
 
 pub mod device;
 pub mod controller;

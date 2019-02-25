@@ -25,7 +25,7 @@ impl <T: SendToDevice> DeviceIdentifier<T> {
         (self.state)(self, data, device)
     }
 
-    fn start_state(state: &mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device> {
+    fn start_state(state: &mut DeviceIdentifier<T>, _new_data: u8, device: &mut T) -> Option<Device> {
         device.send(CommandReturnData::DEFAULT_DISABLE);
         state.state = Self::wait_ack_1;
         None
@@ -41,7 +41,7 @@ impl <T: SendToDevice> DeviceIdentifier<T> {
         }
     }
 
-    fn wait_ack_2(state: &mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device> {
+    fn wait_ack_2(state: &mut DeviceIdentifier<T>, new_data: u8, _device: &mut T) -> Option<Device> {
         if new_data == FromKeyboard::ACK {
             state.state = Self::wait_id_byte_1;
             None
@@ -50,13 +50,13 @@ impl <T: SendToDevice> DeviceIdentifier<T> {
         }
     }
 
-    fn wait_id_byte_1(state: &mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device> {
+    fn wait_id_byte_1(state: &mut DeviceIdentifier<T>, new_data: u8, _device: &mut T) -> Option<Device> {
         state.state = Self::wait_id_byte_2;
         state.byte1 = new_data;
         None
     }
 
-    fn wait_id_byte_2(state: &mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device> {
+    fn wait_id_byte_2(state: &mut DeviceIdentifier<T>, new_data: u8, _device: &mut T) -> Option<Device> {
         state.state = Self::end;
 
         let device = match (state.byte1, new_data) {
@@ -67,7 +67,7 @@ impl <T: SendToDevice> DeviceIdentifier<T> {
         Some(device)
     }
 
-    fn end(state: &mut DeviceIdentifier<T>, new_data: u8, device: &mut T) -> Option<Device> {
+    fn end(_state: &mut DeviceIdentifier<T>, _new_data: u8, _device: &mut T) -> Option<Device> {
         None
     }
 }

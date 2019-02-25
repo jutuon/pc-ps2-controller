@@ -158,6 +158,7 @@ impl <T: PortIO, IRQ> EnabledDevices<T, IRQ> {
     pub fn send_to_keyboard(&mut self, data: u8) -> Result<(), ()> {
         match &self.devices {
             EnableDevice::Keyboard | EnableDevice::KeyboardAndAuxiliaryDevice => {
+                while self.status().input_buffer_full() {}
                 self.port_io_mut().write(T::DATA_PORT, data);
                 Ok(())
             },

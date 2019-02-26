@@ -13,13 +13,13 @@ use arraydeque::{Array};
 
 pub use pc_keyboard;
 
-use pc_keyboard::{KeyEvent, ScancodeSet2, layouts, Error };
+use pc_keyboard::{KeyEvent, ScancodeSet2, ScancodeSet1, layouts, Error, Keyboard as KeyboardScancodeDecoder };
 
 
 pub struct Keyboard<T: Array<Item=Command>> {
     commands: CommandQueue<T>,
     state: State,
-    scancode_reader: pc_keyboard::Keyboard<layouts::Us104Key, ScancodeSet2>,
+    scancode_reader: ScancodeDecoder,
 }
 
 impl <T: Array<Item=Command>> fmt::Debug for Keyboard<T> {
@@ -34,7 +34,7 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         let mut keyboard = Self {
             commands: CommandQueue::new(),
             state: State::ScancodesDisabled,
-            scancode_reader: pc_keyboard::Keyboard::new(layouts::Us104Key, ScancodeSet2),
+            scancode_reader: ScancodeDecoder::new(),
         };
 
         keyboard.set_defaults_and_disable(device)?;
@@ -99,6 +99,10 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    pub fn set_scancode_decoder(&mut self, setting: ScancodeDecoderSetting) {
+        self.scancode_reader.change_decoder(setting)
+    }
+
     pub fn set_typematic_rate<U: SendToDevice>(&mut self, device: &mut U, delay: DelayMilliseconds, rate: RateValue) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.commands.add(Command::set_typematic_rate(delay, rate), device).unwrap();
@@ -124,15 +128,60 @@ impl <T: Array<Item=Command>> Keyboard<T> {
                 return Ok(None);
             }
 
-            self.scancode_reader.add_byte(new_data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
+            self.scancode_reader.decode(new_data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
         } else {
             if let Some(Status::UnexpectedData(data)) = self.commands.receive_data(new_data, device) {
-                self.scancode_reader.add_byte(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
+                self.scancode_reader.decode(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
             } else {
                 Ok(None)
             }
         }
     }
+}
+
+#[derive(Debug)]
+pub struct ScancodeDecoder {
+    current_decoder: Decoder,
+}
+
+impl ScancodeDecoder {
+    /// Defaults to scancode set 2.
+    pub fn new() -> Self {
+        Self {
+            current_decoder: Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2)),
+        }
+    }
+
+    pub fn decode(&mut self, scancode: u8) -> Result<Option<KeyEvent>, Error> {
+        match &mut self.current_decoder {
+            Decoder::Set1(decoder) => decoder.add_byte(scancode),
+            Decoder::Set2(decoder) => decoder.add_byte(scancode),
+        }
+    }
+
+    pub fn change_decoder(&mut self, setting: ScancodeDecoderSetting) {
+        match setting {
+            ScancodeDecoderSetting::Set1 => self.current_decoder = Decoder::Set1(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet1)),
+            ScancodeDecoderSetting::Set2 => self.current_decoder = Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2)),
+        }
+    }
+}
+
+enum Decoder {
+    Set1(KeyboardScancodeDecoder<layouts::Us104Key, ScancodeSet1>),
+    Set2(KeyboardScancodeDecoder<layouts::Us104Key, ScancodeSet2>),
+}
+
+impl fmt::Debug for Decoder {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Decoder")
+    }
+}
+
+#[derive(Debug)]
+pub enum ScancodeDecoderSetting {
+    Set1,
+    Set2,
 }
 
 #[derive(Debug)]

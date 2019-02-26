@@ -62,6 +62,16 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    pub fn enable<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.state = State::ScancodesEnabled;
+            self.commands.add(Command::enable(), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
     pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Result<Option<KeyboardEvent>, KeyboardError> {
         match new_data {
             FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => return Err(KeyboardError::KeyDetectionError),

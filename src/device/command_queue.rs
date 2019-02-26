@@ -154,6 +154,12 @@ impl Command {
     pub fn read_id() -> Self {
         Command::AckResponseWithReturnTwoBytes { command: CommandReturnData::READ_ID, byte1: 0, byte2: 0, state: AckResponseWithReturnTwoBytesState::WaitAck }
     }
+
+    pub fn enable() -> Self {
+        Command::AckResponse {
+            command: CommandReturnData::ENABLE,
+        }
+    }
 }
 
 #[derive(Debug)]

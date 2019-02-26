@@ -6,7 +6,7 @@ use crate::device::io::SendToDevice;
 
 use core::fmt;
 
-use super::raw::{FromKeyboard, StatusIndicators};
+use super::raw::{FromKeyboard, StatusIndicators, CommandSetAllKeys, CommandSetKeyType};
 
 use arraydeque::{Array};
 
@@ -81,6 +81,33 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    pub fn scancode_set_3_set_all_keys<U: SendToDevice>(&mut self, device: &mut U, set_all_keys: SetAllKeys) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::scancode_set_3_set_all_keys(set_all_keys), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
+    pub fn scancode_set_3_set_key_type<U: SendToDevice>(&mut self, device: &mut U, set_key_type: SetKeyType, scancode: u8) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::scancode_set_3_set_key_type(set_key_type, scancode), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
+    pub fn set_typematic_rate<U: SendToDevice>(&mut self, device: &mut U, delay: DelayMilliseconds, rate: RateValue) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::set_typematic_rate(delay, rate), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
     pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Result<Option<KeyboardEvent>, KeyboardError> {
         match new_data {
             FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => return Err(KeyboardError::KeyDetectionError),
@@ -128,4 +155,64 @@ pub struct NotEnoughSpaceInTheCommandQueue;
 enum State {
     ScancodesDisabled,
     ScancodesEnabled,
+}
+
+
+#[derive(Debug)]
+#[repr(u8)]
+pub enum SetAllKeys {
+    Typematic = CommandSetAllKeys::TYPEMATIC,
+    MakeSlashBreak = CommandSetAllKeys::MAKE_SLASH_BREAK,
+    Make = CommandSetAllKeys::MAKE,
+    TypematicSlashMakeSlashBreak = CommandSetAllKeys::TYPEMATIC_SLASH_MAKE_SLASH_BREAK,
+}
+
+#[derive(Debug)]
+#[repr(u8)]
+pub enum SetKeyType {
+    Typematic = CommandSetKeyType::TYPEMATIC,
+    MakeSlashBreak = CommandSetKeyType::MAKE_SLASH_BREAK,
+    Make = CommandSetKeyType::MAKE,
+}
+
+#[derive(Debug)]
+#[repr(u8)]
+pub enum DelayMilliseconds {
+    Delay250 = 0,
+    /// Default value.
+    Delay500 = 0b0010_0000,
+    Delay750 = 0b0100_0000,
+    Delay1000 = 0b0110_0000,
+}
+
+#[derive(Debug)]
+pub struct RateValue(u8);
+
+impl RateValue {
+
+    /// 30 Hz
+    pub const RATE_MAX: RateValue = RateValue(0);
+
+    /// 2 Hz
+    pub const RATE_MIN: RateValue = RateValue(0b0001_1111);
+
+    /// 10,9 Hz
+    pub const RATE_DEFAULT: RateValue = RateValue(0b0000_1011);
+
+
+    /// Create new `RateValue`.
+    ///
+    /// # Panics
+    /// If `value & !0b0001_1111 != 0`.
+    pub fn new(value: u8) -> Self {
+        if value & !0b0001_1111 != 0 {
+            panic!("rate value is out of range. '{} & !0b0001_1111 != 0'", value);
+        }
+
+        RateValue(value)
+    }
+
+    pub fn value(&self) -> u8 {
+        self.0
+    }
 }

@@ -1,5 +1,6 @@
 
 use super::io::SendToDevice;
+use super::keyboard::driver::{SetAllKeys, SetKeyType, DelayMilliseconds, RateValue};
 use super::keyboard::raw::{ FromKeyboard, CommandReturnData };
 
 use arraydeque::{Array, Saturating, ArrayDeque, CapacityError};
@@ -72,7 +73,8 @@ impl CommandChecker {
         match &command {
             Command::AckResponse { command, ..} |
             Command::AckResponseWithReturnTwoBytes { command, ..} |
-            Command::SendCommandAndData {command, .. } => device.send(*command)
+            Command::SendCommandAndData {command, .. } |
+            Command::SendCommandAndDataSingleAck {command, .. }   => device.send(*command)
         }
 
         self.current_command = Some(command);
@@ -132,6 +134,25 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
+                Command::SendCommandAndDataSingleAck { state: s @ SendCommandAndDataState::WaitAck1, data, .. } => {
+                    if new_data == FromKeyboard::ACK {
+                        *s = SendCommandAndDataState::WaitAck2;
+                        device.send(*data);
+                    } else if new_data == FromKeyboard::RESEND {
+                        self.send_new_command(command, device);
+                        return None;
+                    } else {
+                        unexpected_data = Some(new_data);
+                    }
+                }
+                Command::SendCommandAndDataSingleAck { state: SendCommandAndDataState::WaitAck2, data, .. } => {
+                    if new_data == FromKeyboard::RESEND {
+                        device.send(*data);
+                    } else {
+                        command_finished = true;
+                        unexpected_data = Some(new_data);
+                    }
+                }
             }
 
             if command_finished {
@@ -158,6 +179,7 @@ pub enum Command {
     },
     AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState },
     SendCommandAndData { command: u8, data: u8, state: SendCommandAndDataState },
+    SendCommandAndDataSingleAck { command: u8, data: u8, state: SendCommandAndDataState },
 }
 
 impl Command {
@@ -191,6 +213,27 @@ impl Command {
         }
     }
 
+    pub fn scancode_set_3_set_all_keys(command: SetAllKeys) -> Self {
+        Command::AckResponse {
+            command: command as u8,
+        }
+    }
+
+    pub fn scancode_set_3_set_key_type(command: SetKeyType, scancode: u8) -> Self {
+        Command::SendCommandAndDataSingleAck {
+            command: command as u8,
+            data: scancode,
+            state: SendCommandAndDataState::WaitAck1,
+        }
+    }
+
+    pub fn set_typematic_rate(delay: DelayMilliseconds, rate: RateValue) -> Self {
+        Command::SendCommandAndData {
+            command: CommandReturnData::SET_TYPEMATIC_RATE,
+            data: delay as u8 | rate.value(),
+            state: SendCommandAndDataState::WaitAck1,
+        }
+    }
 }
 
 #[derive(Debug)]

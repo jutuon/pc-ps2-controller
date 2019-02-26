@@ -6,7 +6,7 @@ use crate::device::io::SendToDevice;
 
 use core::fmt;
 
-use super::raw::FromKeyboard;
+use super::raw::{FromKeyboard, StatusIndicators};
 
 use arraydeque::{Array};
 
@@ -66,6 +66,15 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         if self.commands.space_available(1) {
             self.state = State::ScancodesEnabled;
             self.commands.add(Command::enable(), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
+    pub fn set_status_indicators<U: SendToDevice>(&mut self, device: &mut U, indicators: StatusIndicators) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::set_status_indicators(indicators.bits()), device).unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)

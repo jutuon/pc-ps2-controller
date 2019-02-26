@@ -71,7 +71,8 @@ impl CommandChecker {
     pub fn send_new_command<T: SendToDevice>(&mut self, command: Command, device: &mut T) {
         match &command {
             Command::AckResponse { command, ..} |
-            Command::AckResponseWithReturnTwoBytes { command, ..} => device.send(*command)
+            Command::AckResponseWithReturnTwoBytes { command, ..} |
+            Command::SendCommandAndData {command, .. } => device.send(*command)
         }
 
         self.current_command = Some(command);
@@ -111,6 +112,26 @@ impl CommandChecker {
                     *byte2 = new_data;
                     command_finished = true;
                 }
+                Command::SendCommandAndData { state: s @ SendCommandAndDataState::WaitAck1, data, .. } => {
+                    if new_data == FromKeyboard::ACK {
+                        *s = SendCommandAndDataState::WaitAck2;
+                        device.send(*data);
+                    } else if new_data == FromKeyboard::RESEND {
+                        self.send_new_command(command, device);
+                        return None;
+                    } else {
+                        unexpected_data = Some(new_data);
+                    }
+                }
+                Command::SendCommandAndData { state: SendCommandAndDataState::WaitAck2, data, .. } => {
+                    if new_data == FromKeyboard::ACK {
+                        command_finished = true;
+                    } else if new_data == FromKeyboard::RESEND {
+                        device.send(*data);
+                    } else {
+                        unexpected_data = Some(new_data);
+                    }
+                }
             }
 
             if command_finished {
@@ -135,7 +156,8 @@ pub enum Command {
     AckResponse {
         command: u8,
     },
-    AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState }
+    AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState },
+    SendCommandAndData { command: u8, data: u8, state: SendCommandAndDataState },
 }
 
 impl Command {
@@ -160,6 +182,15 @@ impl Command {
             command: CommandReturnData::ENABLE,
         }
     }
+
+    pub fn set_status_indicators(data: u8) -> Self {
+        Command::SendCommandAndData {
+            command: CommandReturnData::SET_STATUS_INDICATORS,
+            data,
+            state: SendCommandAndDataState::WaitAck1,
+        }
+    }
+
 }
 
 #[derive(Debug)]
@@ -174,4 +205,10 @@ pub enum AckResponseWithReturnTwoBytesState {
     WaitAck,
     WaitFirstByte,
     WaitSecondByte,
+}
+
+#[derive(Debug)]
+pub enum SendCommandAndDataState {
+    WaitAck1,
+    WaitAck2,
 }

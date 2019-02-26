@@ -13,7 +13,7 @@ use arraydeque::{Array};
 
 pub use pc_keyboard;
 
-use pc_keyboard::{KeyEvent, ScancodeSet2, ScancodeSet1, layouts, Error, Keyboard as KeyboardScancodeDecoder };
+use pc_keyboard::{KeyEvent, ScancodeSet2, ScancodeSet1, layouts, Error, HandleControl, Keyboard as KeyboardScancodeDecoder };
 
 
 pub struct Keyboard<T: Array<Item=Command>> {
@@ -148,7 +148,7 @@ impl ScancodeDecoder {
     /// Defaults to scancode set 2.
     pub fn new() -> Self {
         Self {
-            current_decoder: Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2)),
+            current_decoder: Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2, HandleControl::Ignore)),
         }
     }
 
@@ -161,8 +161,8 @@ impl ScancodeDecoder {
 
     pub fn change_decoder(&mut self, setting: ScancodeDecoderSetting) {
         match setting {
-            ScancodeDecoderSetting::Set1 => self.current_decoder = Decoder::Set1(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet1)),
-            ScancodeDecoderSetting::Set2 => self.current_decoder = Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2)),
+            ScancodeDecoderSetting::Set1 => self.current_decoder = Decoder::Set1(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)),
+            ScancodeDecoderSetting::Set2 => self.current_decoder = Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2, HandleControl::Ignore)),
         }
     }
 }
@@ -247,7 +247,6 @@ impl RateValue {
 
     /// 10,9 Hz
     pub const RATE_DEFAULT: RateValue = RateValue(0b0000_1011);
-
 
     /// Create new `RateValue`.
     ///

@@ -163,7 +163,7 @@ impl CommandChecker {
                 if let Some(data) = unexpected_data {
                     Some(Status::UnexpectedData(data))
                 } else {
-                    Some(Status::CommandInProggress)
+                    Some(Status::CommandInProgress)
                 }
             }
         } else {
@@ -239,7 +239,7 @@ impl Command {
 #[derive(Debug)]
 pub enum Status {
     UnexpectedData(u8),
-    CommandInProggress,
+    CommandInProgress,
     CommandFinished(Command),
 }
 

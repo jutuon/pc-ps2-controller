@@ -1,4 +1,3 @@
-
 //! Driver for PS/2 controller.
 //!
 //! # Reference material
@@ -11,8 +10,7 @@
 #![no_std]
 #![forbid(missing_debug_implementations, unsafe_code)]
 
-pub mod device;
 pub mod controller;
-
+pub mod device;
 
 pub use pc_keyboard;

@@ -1,17 +1,18 @@
-
 use super::io::SendToDevice;
-use super::keyboard::driver::{SetAllKeys, SetKeyType, DelayMilliseconds, RateValue, KeyboardScancodeSetting};
-use super::keyboard::raw::{ FromKeyboard, CommandReturnData };
+use super::keyboard::driver::{
+    DelayMilliseconds, KeyboardScancodeSetting, RateValue, SetAllKeys, SetKeyType,
+};
+use super::keyboard::raw::{CommandReturnData, FromKeyboard};
 
-use arraydeque::{Array, Saturating, ArrayDeque, CapacityError};
+use arraydeque::{Array, ArrayDeque, CapacityError, Saturating};
 
 #[derive(Debug)]
-pub struct CommandQueue<T: Array<Item=Command>> {
+pub struct CommandQueue<T: Array<Item = Command>> {
     commands: ArrayDeque<T, Saturating>,
     command_checker: CommandChecker,
 }
 
-impl <T: Array<Item=Command>> CommandQueue<T> {
+impl<T: Array<Item = Command>> CommandQueue<T> {
     pub fn new() -> Self {
         Self {
             commands: ArrayDeque::new(),
@@ -23,7 +24,11 @@ impl <T: Array<Item=Command>> CommandQueue<T> {
         (self.commands.capacity() - self.commands.len()) >= count
     }
 
-    pub fn add<U: SendToDevice>(&mut self, command: Command, device: &mut U) -> Result<(), CapacityError<Command>> {
+    pub fn add<U: SendToDevice>(
+        &mut self,
+        command: Command,
+        device: &mut U,
+    ) -> Result<(), CapacityError<Command>> {
         let result = self.commands.push_back(command);
 
         if self.command_checker.current_command().is_none() {
@@ -36,7 +41,11 @@ impl <T: Array<Item=Command>> CommandQueue<T> {
     }
 
     /// Receive data only if command queue is not empty.
-    pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Option<Status> {
+    pub fn receive_data<U: SendToDevice>(
+        &mut self,
+        new_data: u8,
+        device: &mut U,
+    ) -> Option<Status> {
         let result = self.command_checker.receive_data(new_data, device);
 
         if let Some(Status::CommandFinished(_)) = &result {
@@ -71,18 +80,24 @@ impl CommandChecker {
 
     pub fn send_new_command<T: SendToDevice>(&mut self, command: Command, device: &mut T) {
         match &command {
-            Command::Echo { command } |
-            Command::AckResponse { command, ..} |
-            Command::AckResponseWithReturnTwoBytes { command, ..} |
-            Command::SendCommandAndData {command, .. } |
-            Command::SendCommandAndDataSingleAck {command, .. } |
-            Command::SendCommandAndDataAndReceiveResponse {command, .. }   => device.send(*command)
+            Command::Echo { command }
+            | Command::AckResponse { command, .. }
+            | Command::AckResponseWithReturnTwoBytes { command, .. }
+            | Command::SendCommandAndData { command, .. }
+            | Command::SendCommandAndDataSingleAck { command, .. }
+            | Command::SendCommandAndDataAndReceiveResponse { command, .. } => {
+                device.send(*command)
+            }
         }
 
         self.current_command = Some(command);
     }
 
-    pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Option<Status> {
+    pub fn receive_data<U: SendToDevice>(
+        &mut self,
+        new_data: u8,
+        device: &mut U,
+    ) -> Option<Status> {
         if let Some(mut command) = self.current_command.take() {
             let mut command_finished = false;
             let mut unexpected_data = None;
@@ -107,8 +122,11 @@ impl CommandChecker {
                     } else {
                         unexpected_data = Some(new_data);
                     }
-                },
-                Command::AckResponseWithReturnTwoBytes { state: s @ AckResponseWithReturnTwoBytesState::WaitAck, .. } => {
+                }
+                Command::AckResponseWithReturnTwoBytes {
+                    state: s @ AckResponseWithReturnTwoBytesState::WaitAck,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         *s = AckResponseWithReturnTwoBytesState::WaitFirstByte;
                     } else if new_data == FromKeyboard::RESEND {
@@ -118,15 +136,27 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::AckResponseWithReturnTwoBytes { state: s @ AckResponseWithReturnTwoBytesState::WaitFirstByte, byte1, .. } => {
+                Command::AckResponseWithReturnTwoBytes {
+                    state: s @ AckResponseWithReturnTwoBytesState::WaitFirstByte,
+                    byte1,
+                    ..
+                } => {
                     *s = AckResponseWithReturnTwoBytesState::WaitSecondByte;
                     *byte1 = new_data;
                 }
-                Command::AckResponseWithReturnTwoBytes { state: AckResponseWithReturnTwoBytesState::WaitSecondByte, byte2, .. } => {
+                Command::AckResponseWithReturnTwoBytes {
+                    state: AckResponseWithReturnTwoBytesState::WaitSecondByte,
+                    byte2,
+                    ..
+                } => {
                     *byte2 = new_data;
                     command_finished = true;
                 }
-                Command::SendCommandAndData { state: s @ SendCommandAndDataState::WaitAck1, data, .. } => {
+                Command::SendCommandAndData {
+                    state: s @ SendCommandAndDataState::WaitAck1,
+                    data,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         *s = SendCommandAndDataState::WaitAck2;
                         device.send(*data);
@@ -137,7 +167,11 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::SendCommandAndData { state: SendCommandAndDataState::WaitAck2, data, .. } => {
+                Command::SendCommandAndData {
+                    state: SendCommandAndDataState::WaitAck2,
+                    data,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         command_finished = true;
                     } else if new_data == FromKeyboard::RESEND {
@@ -146,7 +180,11 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::SendCommandAndDataSingleAck { state: s @ SendCommandAndDataState::WaitAck1, data, .. } => {
+                Command::SendCommandAndDataSingleAck {
+                    state: s @ SendCommandAndDataState::WaitAck1,
+                    data,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         *s = SendCommandAndDataState::WaitAck2;
                         device.send(*data);
@@ -157,7 +195,12 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::SendCommandAndDataSingleAck { state: SendCommandAndDataState::WaitAck2, data, scancode_received_after_this_command, .. } => {
+                Command::SendCommandAndDataSingleAck {
+                    state: SendCommandAndDataState::WaitAck2,
+                    data,
+                    scancode_received_after_this_command,
+                    ..
+                } => {
                     if new_data == FromKeyboard::RESEND {
                         device.send(*data);
                     } else {
@@ -165,7 +208,11 @@ impl CommandChecker {
                         command_finished = true;
                     }
                 }
-                Command::SendCommandAndDataAndReceiveResponse { state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck1, data, .. } => {
+                Command::SendCommandAndDataAndReceiveResponse {
+                    state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck1,
+                    data,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         *s = SendCommandAndDataAndReceiveResponseState::WaitAck2;
                         device.send(*data);
@@ -176,14 +223,22 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::SendCommandAndDataAndReceiveResponse { state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck2, data, .. } => {
+                Command::SendCommandAndDataAndReceiveResponse {
+                    state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck2,
+                    data,
+                    ..
+                } => {
                     if new_data == FromKeyboard::ACK {
                         *s = SendCommandAndDataAndReceiveResponseState::WaitResponse;
                     } else if new_data == FromKeyboard::RESEND {
                         device.send(*data);
                     }
                 }
-                Command::SendCommandAndDataAndReceiveResponse { state: SendCommandAndDataAndReceiveResponseState::WaitResponse, response, .. } => {
+                Command::SendCommandAndDataAndReceiveResponse {
+                    state: SendCommandAndDataAndReceiveResponseState::WaitResponse,
+                    response,
+                    ..
+                } => {
                     *response = new_data;
                     command_finished = true;
                 }
@@ -214,10 +269,29 @@ pub enum Command {
     AckResponse {
         command: u8,
     },
-    AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState },
-    SendCommandAndData { command: u8, data: u8, state: SendCommandAndDataState },
-    SendCommandAndDataSingleAck { command: u8, data: u8, scancode_received_after_this_command: u8, state: SendCommandAndDataState },
-    SendCommandAndDataAndReceiveResponse { command: u8, data: u8, response: u8, state: SendCommandAndDataAndReceiveResponseState },
+    AckResponseWithReturnTwoBytes {
+        command: u8,
+        byte1: u8,
+        byte2: u8,
+        state: AckResponseWithReturnTwoBytesState,
+    },
+    SendCommandAndData {
+        command: u8,
+        data: u8,
+        state: SendCommandAndDataState,
+    },
+    SendCommandAndDataSingleAck {
+        command: u8,
+        data: u8,
+        scancode_received_after_this_command: u8,
+        state: SendCommandAndDataState,
+    },
+    SendCommandAndDataAndReceiveResponse {
+        command: u8,
+        data: u8,
+        response: u8,
+        state: SendCommandAndDataAndReceiveResponseState,
+    },
 }
 
 impl Command {
@@ -234,7 +308,12 @@ impl Command {
     }
 
     pub fn read_id() -> Self {
-        Command::AckResponseWithReturnTwoBytes { command: CommandReturnData::READ_ID, byte1: 0, byte2: 0, state: AckResponseWithReturnTwoBytesState::WaitAck }
+        Command::AckResponseWithReturnTwoBytes {
+            command: CommandReturnData::READ_ID,
+            byte1: 0,
+            byte2: 0,
+            state: AckResponseWithReturnTwoBytesState::WaitAck,
+        }
     }
 
     pub fn enable() -> Self {

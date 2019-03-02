@@ -1,35 +1,34 @@
-
-
-
-use crate::device::command_queue::{CommandQueue, Command, Status};
+use crate::device::command_queue::{Command, CommandQueue, Status};
 use crate::device::io::SendToDevice;
 
 use core::fmt;
 
-use super::raw::{FromKeyboard, StatusIndicators, CommandSetAllKeys, CommandSetKeyType, CommandReturnData};
+use super::raw::{
+    CommandReturnData, CommandSetAllKeys, CommandSetKeyType, FromKeyboard, StatusIndicators,
+};
 
-use arraydeque::{Array};
-
+use arraydeque::Array;
 
 pub use pc_keyboard;
 
-use pc_keyboard::{KeyEvent, ScancodeSet2, ScancodeSet1, layouts, Error, HandleControl, Keyboard as KeyboardScancodeDecoder };
+use pc_keyboard::{
+    layouts, Error, HandleControl, KeyEvent, Keyboard as KeyboardScancodeDecoder, ScancodeSet1,
+    ScancodeSet2,
+};
 
-
-pub struct Keyboard<T: Array<Item=Command>> {
+pub struct Keyboard<T: Array<Item = Command>> {
     commands: CommandQueue<T>,
     state: State,
     scancode_reader: ScancodeDecoder,
 }
 
-impl <T: Array<Item=Command>> fmt::Debug for Keyboard<T> {
+impl<T: Array<Item = Command>> fmt::Debug for Keyboard<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Keyboard")
     }
 }
 
-
-impl <T: Array<Item=Command>> Keyboard<T> {
+impl<T: Array<Item = Command>> Keyboard<T> {
     pub fn new<U: SendToDevice>(device: &mut U) -> Result<Self, NotEnoughSpaceInTheCommandQueue> {
         let mut keyboard = Self {
             commands: CommandQueue::new(),
@@ -42,17 +41,25 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         Ok(keyboard)
     }
 
-    pub fn set_defaults_and_disable<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn set_defaults_and_disable<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.state = State::ScancodesDisabled;
-            self.commands.add(Command::default_disable(), device).unwrap();
+            self.commands
+                .add(Command::default_disable(), device)
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
         }
     }
 
-    pub fn set_defaults_and_enable<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn set_defaults_and_enable<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.state = State::ScancodesEnabled;
             self.commands.add(Command::set_default(), device).unwrap();
@@ -62,7 +69,10 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
-    pub fn enable<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn enable<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.state = State::ScancodesEnabled;
             self.commands.add(Command::enable(), device).unwrap();
@@ -72,27 +82,49 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
-    pub fn set_status_indicators<U: SendToDevice>(&mut self, device: &mut U, indicators: StatusIndicators) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn set_status_indicators<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+        indicators: StatusIndicators,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
-            self.commands.add(Command::set_status_indicators(indicators.bits()), device).unwrap();
+            self.commands
+                .add(Command::set_status_indicators(indicators.bits()), device)
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
         }
     }
 
-    pub fn scancode_set_3_set_all_keys<U: SendToDevice>(&mut self, device: &mut U, set_all_keys: SetAllKeys) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn scancode_set_3_set_all_keys<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+        set_all_keys: SetAllKeys,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
-            self.commands.add(Command::scancode_set_3_set_all_keys(set_all_keys), device).unwrap();
+            self.commands
+                .add(Command::scancode_set_3_set_all_keys(set_all_keys), device)
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
         }
     }
 
-    pub fn scancode_set_3_set_key_type<U: SendToDevice>(&mut self, device: &mut U, set_key_type: SetKeyType, scancode: u8) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn scancode_set_3_set_key_type<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+        set_key_type: SetKeyType,
+        scancode: u8,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
-            self.commands.add(Command::scancode_set_3_set_key_type(set_key_type, scancode), device).unwrap();
+            self.commands
+                .add(
+                    Command::scancode_set_3_set_key_type(set_key_type, scancode),
+                    device,
+                )
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
@@ -103,16 +135,26 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         self.scancode_reader.change_decoder(setting)
     }
 
-    pub fn set_typematic_rate<U: SendToDevice>(&mut self, device: &mut U, delay: DelayMilliseconds, rate: RateValue) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn set_typematic_rate<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+        delay: DelayMilliseconds,
+        rate: RateValue,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
-            self.commands.add(Command::set_typematic_rate(delay, rate), device).unwrap();
+            self.commands
+                .add(Command::set_typematic_rate(delay, rate), device)
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
         }
     }
 
-    pub fn read_id<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn read_id<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.commands.add(Command::read_id(), device).unwrap();
             Ok(())
@@ -121,7 +163,10 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
-    pub fn echo<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn echo<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(1) {
             self.commands.add(Command::echo(), device).unwrap();
             Ok(())
@@ -134,25 +179,40 @@ impl <T: Array<Item=Command>> Keyboard<T> {
     ///
     /// PS/2 controller scancode translation
     /// must be disabled when using this command.
-    pub fn set_alternate_scancode_set<U: SendToDevice>(&mut self, device: &mut U, scancode_setting: KeyboardScancodeSetting) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+    pub fn set_alternate_scancode_set<U: SendToDevice>(
+        &mut self,
+        device: &mut U,
+        scancode_setting: KeyboardScancodeSetting,
+    ) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
         if self.commands.space_available(2) {
-            self.commands.add(Command::set_alternate_scancodes(scancode_setting), device).unwrap();
-            self.commands.add(Command::get_current_scancode_set(), device).unwrap();
+            self.commands
+                .add(Command::set_alternate_scancodes(scancode_setting), device)
+                .unwrap();
+            self.commands
+                .add(Command::get_current_scancode_set(), device)
+                .unwrap();
             Ok(())
         } else {
             Err(NotEnoughSpaceInTheCommandQueue)
         }
     }
 
-    pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Result<Option<KeyboardEvent>, KeyboardError> {
+    pub fn receive_data<U: SendToDevice>(
+        &mut self,
+        new_data: u8,
+        device: &mut U,
+    ) -> Result<Option<KeyboardEvent>, KeyboardError> {
         match new_data {
-            FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_1 | FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => return Err(KeyboardError::KeyDetectionError),
+            FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_1
+            | FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => {
+                return Err(KeyboardError::KeyDetectionError);
+            }
             FromKeyboard::BAT_FAILURE_CODE => return Err(KeyboardError::BATCompletionFailure),
             FromKeyboard::BAT_COMPLETION_CODE => {
                 self.state = State::ScancodesEnabled;
                 self.set_scancode_decoder(ScancodeDecoderSetting::Set2);
                 return Ok(Some(KeyboardEvent::BATCompleted));
-            },
+            }
             _ => (),
         }
 
@@ -161,17 +221,32 @@ impl <T: Array<Item=Command>> Keyboard<T> {
                 return Ok(None);
             }
 
-            self.scancode_reader.decode(new_data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
+            self.scancode_reader
+                .decode(new_data)
+                .map(|o| o.map(|e| KeyboardEvent::Key(e)))
+                .map_err(|e| KeyboardError::ScancodeParsingError(e))
         } else {
             match self.commands.receive_data(new_data, device) {
-                Some(Status::CommandFinished(Command::SendCommandAndDataSingleAck { scancode_received_after_this_command: data, ..})) |
-                Some(Status::UnexpectedData(data)) => {
-                    self.scancode_reader.decode(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
-                },
-                Some(Status::CommandFinished(Command::AckResponseWithReturnTwoBytes { command: CommandReturnData::READ_ID, byte1, byte2, ..})) => {
-                    Ok(Some(KeyboardEvent::ID { byte1, byte2 }))
-                },
-                Some(Status::CommandFinished(Command::SendCommandAndDataAndReceiveResponse {command: CommandReturnData::SELECT_ALTERNATE_SCANCODES, response, ..})) => {
+                Some(Status::CommandFinished(Command::SendCommandAndDataSingleAck {
+                    scancode_received_after_this_command: data,
+                    ..
+                }))
+                | Some(Status::UnexpectedData(data)) => self
+                    .scancode_reader
+                    .decode(data)
+                    .map(|o| o.map(|e| KeyboardEvent::Key(e)))
+                    .map_err(|e| KeyboardError::ScancodeParsingError(e)),
+                Some(Status::CommandFinished(Command::AckResponseWithReturnTwoBytes {
+                    command: CommandReturnData::READ_ID,
+                    byte1,
+                    byte2,
+                    ..
+                })) => Ok(Some(KeyboardEvent::ID { byte1, byte2 })),
+                Some(Status::CommandFinished(Command::SendCommandAndDataAndReceiveResponse {
+                    command: CommandReturnData::SELECT_ALTERNATE_SCANCODES,
+                    response,
+                    ..
+                })) => {
                     let setting = match response {
                         1 => {
                             self.set_scancode_decoder(ScancodeDecoderSetting::Set1);
@@ -182,12 +257,16 @@ impl <T: Array<Item=Command>> Keyboard<T> {
                             Ok(KeyboardScancodeSetting::Set2)
                         }
                         3 => Ok(KeyboardScancodeSetting::Set3), // TODO: ScancodeDecoderSetting::Set3
-                        scancode_set_number => Err(KeyboardError::UnknownScancodeSet(scancode_set_number)),
+                        scancode_set_number => {
+                            Err(KeyboardError::UnknownScancodeSet(scancode_set_number))
+                        }
                     };
 
                     setting.map(|scancode_set| Some(KeyboardEvent::ScancodeSet(scancode_set)))
                 }
-                Some(Status::CommandFinished(Command::Echo {..})) => Ok(Some(KeyboardEvent::Echo)),
+                Some(Status::CommandFinished(Command::Echo { .. })) => {
+                    Ok(Some(KeyboardEvent::Echo))
+                }
                 Some(_) | None => Ok(None),
             }
         }
@@ -203,7 +282,11 @@ impl ScancodeDecoder {
     /// Defaults to scancode set 2.
     pub fn new() -> Self {
         Self {
-            current_decoder: Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2, HandleControl::Ignore)),
+            current_decoder: Decoder::Set2(KeyboardScancodeDecoder::new(
+                layouts::Us104Key,
+                ScancodeSet2,
+                HandleControl::Ignore,
+            )),
         }
     }
 
@@ -216,8 +299,20 @@ impl ScancodeDecoder {
 
     pub fn change_decoder(&mut self, setting: ScancodeDecoderSetting) {
         match setting {
-            ScancodeDecoderSetting::Set1 => self.current_decoder = Decoder::Set1(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet1, HandleControl::Ignore)),
-            ScancodeDecoderSetting::Set2 => self.current_decoder = Decoder::Set2(KeyboardScancodeDecoder::new(layouts::Us104Key, ScancodeSet2, HandleControl::Ignore)),
+            ScancodeDecoderSetting::Set1 => {
+                self.current_decoder = Decoder::Set1(KeyboardScancodeDecoder::new(
+                    layouts::Us104Key,
+                    ScancodeSet1,
+                    HandleControl::Ignore,
+                ))
+            }
+            ScancodeDecoderSetting::Set2 => {
+                self.current_decoder = Decoder::Set2(KeyboardScancodeDecoder::new(
+                    layouts::Us104Key,
+                    ScancodeSet2,
+                    HandleControl::Ignore,
+                ))
+            }
         }
     }
 }
@@ -273,7 +368,6 @@ enum State {
     ScancodesEnabled,
 }
 
-
 #[derive(Debug)]
 #[repr(u8)]
 pub enum SetAllKeys {
@@ -305,7 +399,6 @@ pub enum DelayMilliseconds {
 pub struct RateValue(u8);
 
 impl RateValue {
-
     /// 30 Hz
     pub const RATE_MAX: RateValue = RateValue(0);
 
@@ -321,7 +414,10 @@ impl RateValue {
     /// If `value & !0b0001_1111 != 0`.
     pub fn new(value: u8) -> Self {
         if value & !0b0001_1111 != 0 {
-            panic!("rate value is out of range. '{} & !0b0001_1111 != 0'", value);
+            panic!(
+                "rate value is out of range. '{} & !0b0001_1111 != 0'",
+                value
+            );
         }
 
         RateValue(value)

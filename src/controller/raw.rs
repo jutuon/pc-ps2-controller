@@ -1,4 +1,3 @@
-
 use bitflags::bitflags;
 
 bitflags! {
@@ -14,8 +13,8 @@ bitflags! {
     }
 }
 
-
-pub const CONTROLLER_RAM_SIZE: usize = (CommandReturnData::READ_RAM_END - CommandReturnData::READ_RAM_START + 1) as usize;
+pub const CONTROLLER_RAM_SIZE: usize =
+    (CommandReturnData::READ_RAM_END - CommandReturnData::READ_RAM_START + 1) as usize;
 
 #[derive(Debug)]
 pub struct Command;

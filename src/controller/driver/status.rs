@@ -1,8 +1,8 @@
 //! Read controller status register.
 
 use crate::controller::{
+    io::{PortIO, PortIOAvailable},
     raw::StatusRegister,
-    io::{ PortIO, PortIOAvailable },
 };
 
 #[derive(Debug)]
@@ -30,7 +30,10 @@ pub enum PasswordState {
 
 impl StatusInfo {
     pub fn keyboard_data_parity(&self) -> Result<OddParity, EvenParity> {
-        if self.register.contains(StatusRegister::KEYBOARD_PARITY_ERROR) {
+        if self
+            .register
+            .contains(StatusRegister::KEYBOARD_PARITY_ERROR)
+        {
             Err(EvenParity)
         } else {
             Ok(OddParity)
@@ -45,8 +48,8 @@ impl StatusInfo {
     /// If `Some(_)` there is new data available to read from the controller.
     pub fn data_availability(&self) -> Option<DataOwner> {
         if self.register.contains(
-            StatusRegister::AUXILIARY_DEVICE_OUTPUT_BUFFER_FULL |
-            StatusRegister::OUTPUT_BUFFER_FULL
+            StatusRegister::AUXILIARY_DEVICE_OUTPUT_BUFFER_FULL
+                | StatusRegister::OUTPUT_BUFFER_FULL,
         ) {
             Some(DataOwner::AuxiliaryDevice)
         } else if self.register.contains(StatusRegister::OUTPUT_BUFFER_FULL) {
@@ -77,7 +80,6 @@ impl StatusInfo {
         self.register
     }
 }
-
 
 pub trait ReadStatus<T: PortIO>: PortIOAvailable<T> {
     fn status(&mut self) -> StatusInfo {

@@ -1,5 +1,3 @@
-
-
 use bitflags::bitflags;
 
 #[derive(Debug)]

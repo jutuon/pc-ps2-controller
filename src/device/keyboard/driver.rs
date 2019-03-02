@@ -155,6 +155,7 @@ impl <T: Array<Item=Command>> Keyboard<T> {
             self.scancode_reader.decode(new_data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
         } else {
             match self.commands.receive_data(new_data, device) {
+                Some(Status::CommandFinished(Command::SendCommandAndDataSingleAck { scancode_received_after_this_command: data, ..})) |
                 Some(Status::UnexpectedData(data)) => {
                     self.scancode_reader.decode(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
                 },

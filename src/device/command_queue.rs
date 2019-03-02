@@ -146,12 +146,12 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
-                Command::SendCommandAndDataSingleAck { state: SendCommandAndDataState::WaitAck2, data, .. } => {
+                Command::SendCommandAndDataSingleAck { state: SendCommandAndDataState::WaitAck2, data, scancode_received_after_this_command, .. } => {
                     if new_data == FromKeyboard::RESEND {
                         device.send(*data);
                     } else {
+                        *scancode_received_after_this_command = new_data;
                         command_finished = true;
-                        unexpected_data = Some(new_data);
                     }
                 }
                 Command::SendCommandAndDataAndReceiveResponse { state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck1, data, .. } => {
@@ -202,7 +202,7 @@ pub enum Command {
     },
     AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState },
     SendCommandAndData { command: u8, data: u8, state: SendCommandAndDataState },
-    SendCommandAndDataSingleAck { command: u8, data: u8, state: SendCommandAndDataState },
+    SendCommandAndDataSingleAck { command: u8, data: u8, scancode_received_after_this_command: u8, state: SendCommandAndDataState },
     SendCommandAndDataAndReceiveResponse { command: u8, data: u8, response: u8, state: SendCommandAndDataAndReceiveResponseState },
 }
 
@@ -247,6 +247,7 @@ impl Command {
         Command::SendCommandAndDataSingleAck {
             command: command as u8,
             data: scancode,
+            scancode_received_after_this_command: 0,
             state: SendCommandAndDataState::WaitAck1,
         }
     }

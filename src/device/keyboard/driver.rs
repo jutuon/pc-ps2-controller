@@ -121,6 +121,15 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    pub fn echo<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::echo(), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
     /// Set keyboard scancode set.
     ///
     /// PS/2 controller scancode translation
@@ -178,6 +187,7 @@ impl <T: Array<Item=Command>> Keyboard<T> {
 
                     setting.map(|scancode_set| Some(KeyboardEvent::ScancodeSet(scancode_set)))
                 }
+                Some(Status::CommandFinished(Command::Echo {..})) => Ok(Some(KeyboardEvent::Echo)),
                 Some(_) | None => Ok(None),
             }
         }
@@ -251,6 +261,7 @@ pub enum KeyboardEvent {
     BATCompleted,
     ID { byte1: u8, byte2: u8 },
     ScancodeSet(KeyboardScancodeSetting),
+    Echo,
 }
 
 #[derive(Debug)]

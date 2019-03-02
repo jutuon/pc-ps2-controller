@@ -71,6 +71,7 @@ impl CommandChecker {
 
     pub fn send_new_command<T: SendToDevice>(&mut self, command: Command, device: &mut T) {
         match &command {
+            Command::Echo { command } |
             Command::AckResponse { command, ..} |
             Command::AckResponseWithReturnTwoBytes { command, ..} |
             Command::SendCommandAndData {command, .. } |
@@ -87,6 +88,16 @@ impl CommandChecker {
             let mut unexpected_data = None;
 
             match &mut command {
+                Command::Echo { .. } => {
+                    if new_data == FromKeyboard::ECHO {
+                        command_finished = true;
+                    } else if new_data == FromKeyboard::RESEND {
+                        self.send_new_command(command, device);
+                        return None;
+                    } else {
+                        unexpected_data = Some(new_data);
+                    }
+                }
                 Command::AckResponse { .. } => {
                     if new_data == FromKeyboard::ACK {
                         command_finished = true;
@@ -197,6 +208,9 @@ impl CommandChecker {
 
 #[derive(Debug)]
 pub enum Command {
+    Echo {
+        command: u8,
+    },
     AckResponse {
         command: u8,
     },
@@ -274,6 +288,12 @@ impl Command {
             data: 0,
             response: 0,
             state: SendCommandAndDataAndReceiveResponseState::WaitAck1,
+        }
+    }
+
+    pub fn echo() -> Self {
+        Command::Echo {
+            command: CommandReturnData::ECHO,
         }
     }
 }

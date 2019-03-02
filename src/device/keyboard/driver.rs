@@ -141,6 +141,7 @@ impl <T: Array<Item=Command>> Keyboard<T> {
             FromKeyboard::BAT_FAILURE_CODE => return Err(KeyboardError::BATCompletionFailure),
             FromKeyboard::BAT_COMPLETION_CODE => {
                 self.state = State::ScancodesEnabled;
+                self.set_scancode_decoder(ScancodeDecoderSetting::Set2);
                 return Ok(Some(KeyboardEvent::BATCompleted));
             },
             _ => (),

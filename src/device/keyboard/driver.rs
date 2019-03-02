@@ -121,6 +121,20 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    /// Set keyboard scancode set.
+    ///
+    /// PS/2 controller scancode translation
+    /// must be disabled when using this command.
+    pub fn set_alternate_scancode_set<U: SendToDevice>(&mut self, device: &mut U, scancode_setting: KeyboardScancodeSetting) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(2) {
+            self.commands.add(Command::set_alternate_scancodes(scancode_setting), device).unwrap();
+            self.commands.add(Command::get_current_scancode_set(), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
     pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Result<Option<KeyboardEvent>, KeyboardError> {
         match new_data {
             FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => return Err(KeyboardError::KeyDetectionError),
@@ -145,6 +159,22 @@ impl <T: Array<Item=Command>> Keyboard<T> {
                 },
                 Some(Status::CommandFinished(Command::AckResponseWithReturnTwoBytes { command: CommandReturnData::READ_ID, byte1, byte2, ..})) => {
                     Ok(Some(KeyboardEvent::ID { byte1, byte2 }))
+                },
+                Some(Status::CommandFinished(Command::SendCommandAndDataAndReceiveResponse {command: CommandReturnData::SELECT_ALTERNATE_SCANCODES, response, ..})) => {
+                    let setting = match response {
+                        1 => {
+                            self.set_scancode_decoder(ScancodeDecoderSetting::Set1);
+                            Ok(KeyboardScancodeSetting::Set1)
+                        }
+                        2 => {
+                            self.set_scancode_decoder(ScancodeDecoderSetting::Set2);
+                            Ok(KeyboardScancodeSetting::Set2)
+                        }
+                        3 => Ok(KeyboardScancodeSetting::Set3), // TODO: ScancodeDecoderSetting::Set3
+                        scancode_set_number => Err(KeyboardError::UnknownScancodeSet(scancode_set_number)),
+                    };
+
+                    setting.map(|scancode_set| Some(KeyboardEvent::ScancodeSet(scancode_set)))
                 }
                 Some(_) | None => Ok(None),
             }
@@ -192,6 +222,14 @@ impl fmt::Debug for Decoder {
 }
 
 #[derive(Debug)]
+#[repr(u8)]
+pub enum KeyboardScancodeSetting {
+    Set1 = 1,
+    Set2,
+    Set3,
+}
+
+#[derive(Debug)]
 pub enum ScancodeDecoderSetting {
     Set1,
     Set2,
@@ -201,6 +239,7 @@ pub enum ScancodeDecoderSetting {
 pub enum KeyboardError {
     KeyDetectionError,
     BATCompletionFailure,
+    UnknownScancodeSet(u8),
     ScancodeParsingError(Error),
 }
 
@@ -209,6 +248,7 @@ pub enum KeyboardEvent {
     Key(KeyEvent),
     BATCompleted,
     ID { byte1: u8, byte2: u8 },
+    ScancodeSet(KeyboardScancodeSetting),
 }
 
 #[derive(Debug)]

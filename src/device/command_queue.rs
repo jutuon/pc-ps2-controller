@@ -1,6 +1,6 @@
 
 use super::io::SendToDevice;
-use super::keyboard::driver::{SetAllKeys, SetKeyType, DelayMilliseconds, RateValue};
+use super::keyboard::driver::{SetAllKeys, SetKeyType, DelayMilliseconds, RateValue, KeyboardScancodeSetting};
 use super::keyboard::raw::{ FromKeyboard, CommandReturnData };
 
 use arraydeque::{Array, Saturating, ArrayDeque, CapacityError};
@@ -74,7 +74,8 @@ impl CommandChecker {
             Command::AckResponse { command, ..} |
             Command::AckResponseWithReturnTwoBytes { command, ..} |
             Command::SendCommandAndData {command, .. } |
-            Command::SendCommandAndDataSingleAck {command, .. }   => device.send(*command)
+            Command::SendCommandAndDataSingleAck {command, .. } |
+            Command::SendCommandAndDataAndReceiveResponse {command, .. }   => device.send(*command)
         }
 
         self.current_command = Some(command);
@@ -153,6 +154,28 @@ impl CommandChecker {
                         unexpected_data = Some(new_data);
                     }
                 }
+                Command::SendCommandAndDataAndReceiveResponse { state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck1, data, .. } => {
+                    if new_data == FromKeyboard::ACK {
+                        *s = SendCommandAndDataAndReceiveResponseState::WaitAck2;
+                        device.send(*data);
+                    } else if new_data == FromKeyboard::RESEND {
+                        self.send_new_command(command, device);
+                        return None;
+                    } else {
+                        unexpected_data = Some(new_data);
+                    }
+                }
+                Command::SendCommandAndDataAndReceiveResponse { state: s @ SendCommandAndDataAndReceiveResponseState::WaitAck2, data, .. } => {
+                    if new_data == FromKeyboard::ACK {
+                        *s = SendCommandAndDataAndReceiveResponseState::WaitResponse;
+                    } else if new_data == FromKeyboard::RESEND {
+                        device.send(*data);
+                    }
+                }
+                Command::SendCommandAndDataAndReceiveResponse { state: SendCommandAndDataAndReceiveResponseState::WaitResponse, response, .. } => {
+                    *response = new_data;
+                    command_finished = true;
+                }
             }
 
             if command_finished {
@@ -180,6 +203,7 @@ pub enum Command {
     AckResponseWithReturnTwoBytes { command: u8, byte1: u8, byte2: u8, state: AckResponseWithReturnTwoBytesState },
     SendCommandAndData { command: u8, data: u8, state: SendCommandAndDataState },
     SendCommandAndDataSingleAck { command: u8, data: u8, state: SendCommandAndDataState },
+    SendCommandAndDataAndReceiveResponse { command: u8, data: u8, response: u8, state: SendCommandAndDataAndReceiveResponseState },
 }
 
 impl Command {
@@ -234,6 +258,23 @@ impl Command {
             state: SendCommandAndDataState::WaitAck1,
         }
     }
+
+    pub fn set_alternate_scancodes(scancode_setting: KeyboardScancodeSetting) -> Self {
+        Command::SendCommandAndData {
+            command: CommandReturnData::SELECT_ALTERNATE_SCANCODES,
+            data: scancode_setting as u8,
+            state: SendCommandAndDataState::WaitAck1,
+        }
+    }
+
+    pub fn get_current_scancode_set() -> Self {
+        Command::SendCommandAndDataAndReceiveResponse {
+            command: CommandReturnData::SELECT_ALTERNATE_SCANCODES,
+            data: 0,
+            response: 0,
+            state: SendCommandAndDataAndReceiveResponseState::WaitAck1,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -254,4 +295,11 @@ pub enum AckResponseWithReturnTwoBytesState {
 pub enum SendCommandAndDataState {
     WaitAck1,
     WaitAck2,
+}
+
+#[derive(Debug)]
+pub enum SendCommandAndDataAndReceiveResponseState {
+    WaitAck1,
+    WaitAck2,
+    WaitResponse,
 }

@@ -82,12 +82,12 @@ impl<T: PortIO> DevicesDisabled<T> {
 
     fn test_auxiliary_device(&mut self) -> Result<(), InterfaceError> {
         self.auxiliary_device_interface_test()
-            .map_err(|e| InterfaceError::AuxiliaryDevice(e))
+            .map_err(InterfaceError::AuxiliaryDevice)
     }
 
     fn test_keyboard(&mut self) -> Result<(), InterfaceError> {
         self.keyboard_interface_test()
-            .map_err(|e| InterfaceError::Keyboard(e))
+            .map_err(InterfaceError::Keyboard)
     }
 
     fn test_keyboard_and_auxiliary_device(&mut self) -> Result<(), InterfaceError> {
@@ -277,7 +277,7 @@ fn send_controller_command_and_wait_response<
     controller: &mut U,
     command: u8,
 ) -> u8 {
-    if let Some(_) = controller.status().data_availability() {
+    if controller.status().data_availability().is_some() {
         controller.port_io_mut().read(T::DATA_PORT);
     }
 

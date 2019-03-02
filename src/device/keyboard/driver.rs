@@ -223,8 +223,8 @@ impl<T: Array<Item = Command>> Keyboard<T> {
 
             self.scancode_reader
                 .decode(new_data)
-                .map(|o| o.map(|e| KeyboardEvent::Key(e)))
-                .map_err(|e| KeyboardError::ScancodeParsingError(e))
+                .map(|o| o.map(KeyboardEvent::Key))
+                .map_err(KeyboardError::ScancodeParsingError)
         } else {
             match self.commands.receive_data(new_data, device) {
                 Some(Status::CommandFinished(Command::SendCommandAndDataSingleAck {
@@ -234,8 +234,8 @@ impl<T: Array<Item = Command>> Keyboard<T> {
                 | Some(Status::UnexpectedData(data)) => self
                     .scancode_reader
                     .decode(data)
-                    .map(|o| o.map(|e| KeyboardEvent::Key(e)))
-                    .map_err(|e| KeyboardError::ScancodeParsingError(e)),
+                    .map(|o| o.map(KeyboardEvent::Key))
+                    .map_err(KeyboardError::ScancodeParsingError),
                 Some(Status::CommandFinished(Command::AckResponseWithReturnTwoBytes {
                     command: CommandReturnData::READ_ID,
                     byte1,
@@ -276,6 +276,12 @@ impl<T: Array<Item = Command>> Keyboard<T> {
 #[derive(Debug)]
 pub struct ScancodeDecoder {
     current_decoder: Decoder,
+}
+
+impl Default for ScancodeDecoder {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ScancodeDecoder {

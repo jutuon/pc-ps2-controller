@@ -12,6 +12,12 @@ pub struct CommandQueue<T: Array<Item = Command>> {
     command_checker: CommandChecker,
 }
 
+impl<T: Array<Item = Command>> Default for CommandQueue<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: Array<Item = Command>> CommandQueue<T> {
     pub fn new() -> Self {
         Self {
@@ -58,11 +64,11 @@ impl<T: Array<Item = Command>> CommandQueue<T> {
     }
 
     pub fn empty(&self) -> bool {
-        self.commands.len() == 0 && self.command_checker.current_command().is_none()
+        self.commands.is_empty() && self.command_checker.current_command().is_none()
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CommandChecker {
     current_command: Option<Command>,
 }

@@ -14,6 +14,12 @@ impl<T: SendToDevice> fmt::Debug for DeviceIdentifier<T> {
     }
 }
 
+impl<T: SendToDevice> Default for DeviceIdentifier<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: SendToDevice> DeviceIdentifier<T> {
     pub fn new() -> Self {
         Self {

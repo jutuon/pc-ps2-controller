@@ -6,7 +6,7 @@ use crate::device::io::SendToDevice;
 
 use core::fmt;
 
-use super::raw::{FromKeyboard, StatusIndicators, CommandSetAllKeys, CommandSetKeyType};
+use super::raw::{FromKeyboard, StatusIndicators, CommandSetAllKeys, CommandSetKeyType, CommandReturnData};
 
 use arraydeque::{Array};
 
@@ -112,6 +112,15 @@ impl <T: Array<Item=Command>> Keyboard<T> {
         }
     }
 
+    pub fn read_id<U: SendToDevice>(&mut self, device: &mut U) -> Result<(), NotEnoughSpaceInTheCommandQueue> {
+        if self.commands.space_available(1) {
+            self.commands.add(Command::read_id(), device).unwrap();
+            Ok(())
+        } else {
+            Err(NotEnoughSpaceInTheCommandQueue)
+        }
+    }
+
     pub fn receive_data<U: SendToDevice>(&mut self, new_data: u8, device: &mut U) -> Result<Option<KeyboardEvent>, KeyboardError> {
         match new_data {
             FromKeyboard::KEY_DETECTION_OVERRUN_SCANCODE_SET_2_AND_3 => return Err(KeyboardError::KeyDetectionError),
@@ -130,10 +139,14 @@ impl <T: Array<Item=Command>> Keyboard<T> {
 
             self.scancode_reader.decode(new_data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
         } else {
-            if let Some(Status::UnexpectedData(data)) = self.commands.receive_data(new_data, device) {
-                self.scancode_reader.decode(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
-            } else {
-                Ok(None)
+            match self.commands.receive_data(new_data, device) {
+                Some(Status::UnexpectedData(data)) => {
+                    self.scancode_reader.decode(data).map(|o| o.map(|e| KeyboardEvent::Key(e))).map_err(|e| KeyboardError::ScancodeParsingError(e))
+                },
+                Some(Status::CommandFinished(Command::AckResponseWithReturnTwoBytes { command: CommandReturnData::READ_ID, byte1, byte2, ..})) => {
+                    Ok(Some(KeyboardEvent::ID { byte1, byte2 }))
+                }
+                Some(_) | None => Ok(None),
             }
         }
     }
@@ -195,6 +208,7 @@ pub enum KeyboardError {
 pub enum KeyboardEvent {
     Key(KeyEvent),
     BATCompleted,
+    ID { byte1: u8, byte2: u8 },
 }
 
 #[derive(Debug)]
